@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DB Recovery Tool</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0f1e; color: #cbd5e1; font-family: monospace; font-size: 13px; padding: 20px; }
+  h1 { color: #60a5fa; font-size: 18px; margin-bottom: 16px; }
+  h2 { color: #a5b4fc; font-size: 14px; margin: 16px 0 8px; border-bottom: 1px solid #1e293b; padding-bottom: 4px; }
+  .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .ok   { color: #34d399; }
+  .warn { color: #fbbf24; }
+  .err  { color: #f87171; }
+  pre { background: #020817; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; overflow: auto; max-height: 300px; white-space: pre-wrap; word-break: break-all; font-size: 11px; margin-top: 8px; }
+  button { background: #1d4ed8; color: white; border: none; border-radius: 8px; padding: 8px 16px; cursor: pointer; margin: 4px 4px 4px 0; font-size: 12px; }
+  button:hover { background: #2563eb; }
+  button.danger { background: #991b1b; }
+  button.danger:hover { background: #dc2626; }
+  button.success { background: #065f46; }
+  button.success:hover { background: #059669; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 99px; }
+  .badge-ok   { background: #064e3b; color: #34d399; }
+  .badge-warn { background: #451a03; color: #fbbf24; }
+  .badge-err  { background: #450a0a; color: #f87171; }
+  #status { padding: 12px; border-radius: 8px; background: #0f172a; border: 1px solid #1e293b; margin-bottom: 16px; min-height: 40px; }
+</style>
+</head>
+<body>
+<h1>🏥 Glaucoma Fellowship — DB Recovery Tool</h1>
+<div id="status">⏳ Initializing Firebase…</div>
+
+<div class="card">
+  <h2>🔥 Firestore Documents</h2>
+  <div id="firestore-results">Loading…</div>
+</div>
+
+<div class="card">
+  <h2>💾 LocalStorage Cache</h2>
+  <div id="localstorage-results">Loading…</div>
+</div>
+
+<div class="card">
+  <h2>🔄 Recovery Actions</h2>
+  <p class="warn">⚠️ Only use these if you understand what they do.</p>
+  <div class="row" style="margin-top:12px">
+    <button onclick="restoreFromLocal()">📤 Push LocalStorage → Firestore</button>
+    <button onclick="downloadBackup()">⬇️ Download Backup JSON</button>
+    <button onclick="loadFromFile()">⬆️ Restore from Backup JSON</button>
+    <input type="file" id="backup-file" accept=".json" style="display:none" onchange="handleFileRestore(event)">
+  </div>
+  <div id="action-log" style="margin-top:12px"></div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDei4WwO7zZgnhcINOlyl_FLxKMr1U-uqY",
+  authDomain: "glaucoma-fellowship.firebaseapp.com",
+  projectId: "glaucoma-fellowship",
+  storageBucket: "glaucoma-fellowship.firebasestorage.app",
+  messagingSenderId: "687596886857",
+  appId: "1:687596886857:web:1e124cf2aa382f05901898"
+};
+
+const COL = 'gf_v6';
+const DOCS = ['settings', 'schedule', 'oncall', 'logbook', 'preop', 'study'];
+const dbKey = id => `gf_db_${COL}_${id}`;
+
+let db = null;
+let firestoreData = {};
+let localData = {};
+
+function log(msg, type='') {
+  const el = document.getElementById('status');
+  el.innerHTML = `<span class="${type}">${msg}</span>`;
+}
+
+function actionLog(msg, type='ok') {
+  const el = document.getElementById('action-log');
+  el.innerHTML += `<div class="${type}" style="margin-top:4px">${msg}</div>`;
+}
+
+function sizeLabel(obj) {
+  const s = JSON.stringify(obj).length;
+  if (s < 100) return `<span class="badge badge-err">${s} bytes — likely EMPTY</span>`;
+  if (s < 500) return `<span class="badge badge-warn">${s} bytes — small</span>`;
+  return `<span class="badge badge-ok">${s} bytes — has data</span>`;
+}
+
+function countEntries(docId, data) {
+  if (!data) return '—';
+  if (docId === 'logbook' || docId === 'preop') return `${(data.entries||[]).length} entries`;
+  if (docId === 'oncall') return `${Object.keys(data.call||{}).length} call days, ${Object.keys(data.offDuty||{}).length} off-duty days`;
+  if (docId === 'schedule') return `${Object.keys(data.mr||{}).length} mr keys`;
+  if (docId === 'study') return `${(data.cards||[]).length} cards`;
+  if (docId === 'settings') return 'settings doc';
+  return '—';
+}
+
+// ── Load LocalStorage ──────────────────────────────────────
+function checkLocalStorage() {
+  const el = document.getElementById('localstorage-results');
+  let html = '';
+  localData = {};
+  DOCS.forEach(docId => {
+    const raw = localStorage.getItem(dbKey(docId));
+    if (raw) {
+      try {
+        localData[docId] = JSON.parse(raw);
+        html += `<div style="margin-bottom:8px">
+          <span class="ok">✅ ${docId}</span> ${sizeLabel(localData[docId])} — ${countEntries(docId, localData[docId])}
+          <button onclick='showPre("ls-${docId}")'>👁 View</button>
+          <pre id="ls-${docId}" style="display:none">${JSON.stringify(localData[docId], null, 2).slice(0,2000)}</pre>
+        </div>`;
+      } catch(e) {
+        html += `<div class="err">❌ ${docId} — parse error: ${e.message}</div>`;
+      }
+    } else {
+      html += `<div class="warn">⚠️ ${docId} — NOT in localStorage</div>`;
+    }
+  });
+  el.innerHTML = html;
+}
+
+// ── Load Firestore ─────────────────────────────────────────
+async function checkFirestore() {
+  const el = document.getElementById('firestore-results');
+  if (!db) {
+    el.innerHTML = '<span class="err">❌ Firestore not initialized</span>';
+    return;
+  }
+  let html = '';
+  firestoreData = {};
+  for (const docId of DOCS) {
+    try {
+      const snap = await db.collection(COL).doc(docId).get();
+      if (snap.exists) {
+        firestoreData[docId] = snap.data();
+        html += `<div style="margin-bottom:8px">
+          <span class="ok">✅ ${docId}</span> ${sizeLabel(firestoreData[docId])} — ${countEntries(docId, firestoreData[docId])}
+          <button onclick='showPre("fs-${docId}")'>👁 View</button>
+          <pre id="fs-${docId}" style="display:none">${JSON.stringify(firestoreData[docId], null, 2).slice(0,2000)}</pre>
+        </div>`;
+      } else {
+        html += `<div class="err">❌ ${docId} — document does NOT exist in Firestore</div>`;
+      }
+    } catch(e) {
+      html += `<div class="err">❌ ${docId} — error: ${e.message}</div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+function showPre(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Recovery: Push LocalStorage to Firestore ───────────────
+async function restoreFromLocal() {
+  if (!db) { actionLog('❌ Firestore not available', 'err'); return; }
+  if (!confirm('This will OVERWRITE Firestore with your localStorage data. Continue?')) return;
+  for (const docId of DOCS) {
+    const d = localData[docId];
+    if (!d) { actionLog(`⚠️ ${docId} — no local data, skipping`, 'warn'); continue; }
+    try {
+      await db.collection(COL).doc(docId).set(d);
+      actionLog(`✅ ${docId} — pushed to Firestore`, 'ok');
+    } catch(e) {
+      actionLog(`❌ ${docId} — failed: ${e.message}`, 'err');
+    }
+  }
+  actionLog('Done! Reload the main app to verify.', 'ok');
+  await checkFirestore();
+}
+
+// ── Recovery: Download Backup ──────────────────────────────
+function downloadBackup() {
+  const backup = { timestamp: new Date().toISOString(), source: 'localStorage', data: localData };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `gf_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  actionLog('✅ Backup downloaded', 'ok');
+}
+
+// ── Recovery: Restore from Backup File ────────────────────
+function loadFromFile() {
+  document.getElementById('backup-file').click();
+}
+
+async function handleFileRestore(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  let backup;
+  try {
+    backup = JSON.parse(text);
+  } catch(e) {
+    actionLog('❌ Invalid JSON file: ' + e.message, 'err'); return;
+  }
+  const data = backup.data || backup;
+  if (!confirm(`Restore backup from ${backup.timestamp || 'unknown date'}?\nThis will overwrite BOTH localStorage AND Firestore.`)) return;
+  for (const docId of DOCS) {
+    if (!data[docId]) { actionLog(`⚠️ ${docId} — not in backup, skipping`, 'warn'); continue; }
+    // Write to localStorage
+    localStorage.setItem(dbKey(docId), JSON.stringify(data[docId]));
+    actionLog(`💾 ${docId} → localStorage`, 'ok');
+    // Write to Firestore
+    if (db) {
+      try {
+        await db.collection(COL).doc(docId).set(data[docId]);
+        actionLog(`🔥 ${docId} → Firestore`, 'ok');
+      } catch(e) {
+        actionLog(`❌ ${docId} Firestore write failed: ${e.message}`, 'err');
+      }
+    }
+  }
+  checkLocalStorage();
+  await checkFirestore();
+  actionLog('✅ Restore complete! Reload the main app.', 'ok');
+}
+
+// ── Init ──────────────────────────────────────────────────
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  log('✅ Firebase connected — loading data…', 'ok');
+} catch(e) {
+  log('❌ Firebase init failed: ' + e.message, 'err');
+}
+
+checkLocalStorage();
+checkFirestore().then(() => {
+  log('✅ Diagnostic complete. Review the sections below.', 'ok');
+}).catch(e => {
+  log('❌ Firestore error: ' + e.message, 'err');
+});
+</script>
+</body>
+</html>

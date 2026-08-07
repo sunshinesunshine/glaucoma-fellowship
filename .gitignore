@@ -1,0 +1,22 @@
+# Security & Credentials
+service-account.json
+mcp.json
+*.env
+*.pem
+*.key
+
+# Scratch & Temporary
+scratch/
+.firebase/
+.wrangler/
+.agents/
+.impeccable/
+
+# Node & Build
+node_modules/
+dist/
+.DS_Store
+
+# Impeccable Live
+.impeccable-live.json
+.impeccable-live/

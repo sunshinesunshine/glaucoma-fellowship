@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Glaucoma Fellowship Program Web App Database Rules
+    match /gf_v6/{document=**} {
+      allow read, write: if true;
+    }
+
+    // Corneal SIA & Refraction Tracker Rules
+    match /sia_v1/{document=**} {
+      allow read, write: if true;
+    }
+
+    // Legacy Ophthalmology Board Review Rules (Keep for compatibility)
+    match /metadata/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /chapters/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /questions/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+  }
+}

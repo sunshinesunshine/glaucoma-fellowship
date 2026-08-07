@@ -1,0 +1,20 @@
+# Wrangler Configuration for Glaucoma Fellowship LINE Bot
+name = "fellowship-line"
+main = "cloudflare_worker.js"
+compatibility_date = "2026-06-24"
+
+[vars]
+FIREBASE_PROJECT_ID = "glaucoma-fellowship"
+FIREBASE_API_KEY = "AIzaSyDei4WwO7zZgnhcINOlyl_FLxKMr1U-uqY"
+
+# Note: For security, set your LINE_CHANNEL_ACCESS_TOKEN by running:
+# npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
+
+# Cron triggers for evening schedule check only
+# - Evening: 13:00 UTC (20:00 Bangkok)
+[triggers]
+crons = ["0 13 * * *"]
+
+[[kv_namespaces]]
+binding = "GF_KV"
+id = "87acea4d6b2f4314a564629a861ccfed"

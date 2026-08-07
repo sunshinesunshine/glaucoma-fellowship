@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<title>Glaucoma Fellow Follow-up Tracker</title>
+
+<meta name="theme-color" content="#0b0f19">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Firebase Compatibility SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script>
+  try {
+    if (typeof tailwind !== 'undefined') {
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              outfit: ['Outfit', 'sans-serif'],
+            },
+            colors: {
+              'midnight-base': '#0b0f19',
+              'glass-surface': 'rgba(17, 24, 39, 0.65)',
+              'ss-accent': '#3b82f6',
+              'mn-accent': '#f97316',
+              'status-muted': '#94a3b8',
+              'slate-text': '#e2e8f0',
+              slate: {
+                950: '#070a13',
+                955: '#090d18'
+              }
+            }
+          }
+        }
+      };
+    }
+  } catch (e) {
+    console.error("Tailwind configuration error:", e);
+  }
+</script>
+
+<style>
+  :root {
+    --ss-color: #3b82f6;
+    --mn-color: #f97316;
+    --bg-dark: #0b0f19;
+    --card-dark: rgba(17, 24, 39, 0.65);
+    --text-muted: #94a3b8;
+  }
+  body {
+    background-color: #0b0f19;
+    color: #e2e8f0;
+    -webkit-tap-highlight-color: transparent;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  .glass-card {
+    background: rgba(17, 24, 39, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+  }
+  .glass-card:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+  body.light-theme {
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+  }
+  body.light-theme .glass-card {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-color: rgba(15, 23, 42, 0.15) !important;
+    color: #0f172a !important;
+  }
+  body.light-theme input, body.light-theme select, body.light-theme textarea {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+  }
+  /* Custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+  body.light-theme ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+  }
+  .ambient-glow {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    z-index: -10;
+    pointer-events: none;
+  }
+  .glow-1 { top: -10%; right: -10%; width: 300px; height: 300px; background: #3b82f6; }
+  .glow-2 { bottom: 10%; left: -20%; width: 400px; height: 400px; background: #a855f7; }
+</style>
+</head>
+<body class="font-sans antialiased text-slate-200 min-h-screen relative overflow-x-hidden pb-12">
+
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="app" class="flex flex-col min-h-screen">
+    
+    <!-- HEADER -->
+    <header class="bg-slate-900/40 border-b border-white/5 px-4 py-3.5 sticky top-0 z-30 backdrop-blur-md flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-outfit font-bold text-sm tracking-wide text-slate-100">Glaucoma Follow-up Tracker</h1>
+            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.1.0</span>
+          </div>
+          <p class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase" id="header-fellow-label">Fellow Patient Database</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="header-sync-btn-container" class="hidden">
+          <button onclick="syncFromOrLog()" class="px-3 py-1 bg-blue-600/35 hover:bg-blue-600/50 border border-blue-500/30 rounded-xl text-[10px] font-extrabold text-blue-300 transition-all select-none">
+            🔄 Import OR Cases
+          </button>
+        </div>
+        <button onclick="toggleTheme()" class="w-8 h-8 rounded-xl bg-slate-800/80 border border-white/5 flex items-center justify-center text-xs transition-all hover:bg-slate-700/80 select-none" title="Toggle Theme" id="theme-toggle-btn">
+          🌓
+        </button>
+        <div id="sync-badge-container">
+          <!-- Dynamically Loaded -->
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT WRAPPER -->
+    <main id="main-content" class="p-4 max-w-6xl mx-auto space-y-4 w-full flex-1">
+      <!-- Loading view by default -->
+      <div class="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <span class="text-xs text-slate-400 font-semibold">Initializing Tracker System...</span>
+      </div>
+    </main>
+    
+  </div>
+
+  <!-- VISIT MODAL -->
+  <div id="visit-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="glass-card rounded-3xl w-full max-w-md p-6 space-y-4 relative">
+      <div class="flex justify-between items-center pb-2 border-b border-white/5">
+        <h3 class="font-outfit font-extrabold text-base text-slate-100" id="visit-modal-title">＋ Log Follow-up Visit</h3>
+        <button onclick="closeVisitModal()" class="text-slate-400 hover:text-white font-bold text-sm">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] text-slate-450 font-bold uppercase mb-1">Visit Date</label>
+            <input type="date" id="visit-form-date" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-450 font-bold uppercase mb-1">IOP (mmHg)</label>
+            <input type="number" id="visit-form-iop" placeholder="e.g. 14" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] text-slate-450 font-bold uppercase mb-1">Tonometer</label>
+            <select id="visit-form-tonometer" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none">
+              <option value="Goldmann">Goldmann (GAT)</option>
+              <option value="iCare">iCare</option>
+              <option value="NCT">Non-Contact (NCT)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-450 font-bold uppercase mb-1">Medications Count</label>
+            <input type="number" id="visit-form-meds" placeholder="e.g. 0" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-450 font-bold uppercase mb-1">Visual Acuity (VA)</label>
+          <input type="text" id="visit-form-va" placeholder="e.g. 6/12 or 20/40" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-450 font-bold uppercase mb-1">Clinical Notes</label>
+          <textarea id="visit-form-notes" rows="2" placeholder="e.g. Bleb high, quiet anterior chamber" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none resize-none"></textarea>
+        </div>
+        <div id="visit-custom-fields-container" class="space-y-3">
+          <!-- Dynamic custom fields rendered here -->
+        </div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button onclick="closeVisitModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-330 font-bold text-xs">Cancel</button>
+        <button onclick="saveVisitCard()" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs">Save Visit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT MODAL -->
+  <div id="export-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="glass-card rounded-3xl w-full max-w-md p-6 space-y-4 relative">
+      <div class="flex justify-between items-center pb-2 border-b border-white/5">
+        <h3 class="font-outfit font-extrabold text-base text-slate-100">📊 Export Follow-up Data</h3>
+        <button onclick="closeExportModal()" class="text-slate-400 hover:text-white font-bold text-sm">✕</button>
+      </div>
+      <div class="space-y-4 text-xs">
+        <div>
+          <label class="block text-[10px] text-slate-450 font-bold uppercase mb-2">1. Select Procedure</label>
+          <select id="export-procedure-select" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none">
+            <option value="all">All Procedures (Combined)</option>
+            <option value="Trabeculectomy">Trabeculectomy</option>
+            <option value="Ahmed Valve">Ahmed Valve</option>
+            <option value="CPC">CPC</option>
+            <option value="SLT">SLT</option>
+            <option value="MIGS–iStent">MIGS–iStent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-450 font-bold uppercase mb-2">2. Columns to Include</label>
+          <div class="space-y-2 bg-slate-900/40 p-3 rounded-xl border border-white/5">
+            <label class="flex items-center gap-2 cursor-pointer py-1">
+              <input type="checkbox" id="export-col-baseline" checked class="rounded border-white/10 text-blue-600 focus:ring-0 bg-slate-950">
+              <span>Patient Baseline Info (Age, Sex, Diagnosis, Lens)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer py-1">
+              <input type="checkbox" id="export-col-surgery" checked class="rounded border-white/10 text-blue-600 focus:ring-0 bg-slate-950">
+              <span>Surgery Details (Procedure, Date, Supervisor)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer py-1">
+              <input type="checkbox" id="export-col-visits" checked class="rounded border-white/10 text-blue-600 focus:ring-0 bg-slate-950">
+              <span>Post-op Visits Timeline (Intraocular Pressure, Meds)</span>
+            </label>
+          </div>
+        </div>
+        <p class="text-[10px] text-slate-450 italic">The download will compile all patients into a clean spreadsheet format (CSV) with one row per patient.</p>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button onclick="closeExportModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-330 font-bold text-xs">Cancel</button>
+        <button onclick="triggerCsvExport()" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-1.5">
+          <span>📥 Download Excel (CSV)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APPLICATION JAVASCRIPT -->
+  <script>
+    // ── DATABASE CONSTANTS ────────────────────────────────
+    const COL = 'gf_v6';
+    const dbKey = id => `gf_db_${COL}_${id}`;
+
+    // Starting default setup for Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyDei4WwO7zZgnhcINOlyl_FLxKMr1U-uqY",
+      authDomain: "glaucoma-fellowship.firebaseapp.com",
+      projectId: "glaucoma-fellowship",
+      storageBucket: "glaucoma-fellowship.firebasestorage.app",
+      messagingSenderId: "687596886857",
+      appId: "1:687596886857:web:1e124cf2aa382f05901898"
+    };
+
+    // Defaults for baseline characteristic options
+    const DEF_DIAGS = ['POAG', 'PACG', 'NTG', 'PXG', 'Neovascular GLC', 'Uveitic GLC', 'Steroid GLC', 'OHT', 'GLC Suspect'];
+    const DEF_LENS = ['Phakic', 'Pseudophakic', 'Aphakic'];
+
+    // ── GLOBAL APPLICATION STATE ──────────────────────────
+    let state = {
+      settings: {
+        targetIop: 15,
+        customBaselineFields: [],
+        customVisitFields: []
+      },
+      patients: []
+    };
+
+    // Read only reference from main portal logbook
+    let orLog = [];
+    // Read only reference from main portal settings
+    let mainProcs = ['Trabeculectomy', 'Ahmed Valve', 'MIGS–iStent', 'MIGS–KDB Goniotomy', 'CPC', 'Bleb Revision', 'Needling+5FU', 'Phaco+Trab', 'SLT', 'YAG PI', 'ALT', '5-FU Injection', 'GATT', 'ECP'];
+
+    // Session status
+    let session = {
+      currentFellow: null,      // 'SS' or 'MN'
+      activeView: 'login',      // 'login', 'dashboard', 'profile', 'settings'
+      selectedPatientId: null,
+      searchQuery: '',
+      filterProcedure: 'all',
+      filterScope: 'my',        // 'my' or 'all'
+      isEditingBaseline: false,
+      sortBy: 'date',
+      sortOrder: 'desc'
+    };
+
+    let db = null;
+    let isOnlineDB = false;
+
+    // Initialize Firebase
+    try {
+      if (typeof firebase !== 'undefined') {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        db.enablePersistence({ synchronizeTabs: true })
+          .catch(err => console.warn("Firebase persistence warning:", err));
+        isOnlineDB = true;
+        console.log("Firebase initialized successfully.");
+      }
+    } catch (e) {
+      console.warn("Firebase initialization failed, running locally.", e);
+    }
+
+    // ── POST-OP WEEKS CALCULATOR ──────────────────────────
+    function getPostOpLabel(surgeryDateStr, visitDateStr) {
+      const sDate = new Date(surgeryDateStr);
+      const vDate = new Date(visitDateStr);
+      sDate.setHours(0,0,0,0);
+      vDate.setHours(0,0,0,0);
+      
+      const diffTime = vDate.getTime() - sDate.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) return "Day 0 (Surgery)";
+      if (diffDays < 0) return `${Math.abs(diffDays)}d Pre-op`;
+      
+      if (diffDays < 7) {
+        return `Day ${diffDays}`;
+      }
+      
+      const w = Math.floor(diffDays / 7);
+      const r = diffDays % 7;
+      let wkStr = `${w}Wk`;
+      if (r > 0) wkStr += ` ${r}D`;
+      
+      return `Day ${diffDays} (${wkStr})`;
+    }
+
+    // ── DATA PERSISTENCE & SYNC ───────────────────────────
+    function loadLocalCache() {
+      try {
+        const storedTracker = localStorage.getItem(dbKey('tracker'));
+        if (storedTracker) {
+          const parsed = JSON.parse(storedTracker);
+          state.settings = parsed.settings || state.settings;
+          state.patients = parsed.patients || [];
+        }
+        const storedLog = localStorage.getItem(dbKey('logbook'));
+        if (storedLog) {
+          orLog = JSON.parse(storedLog).entries || [];
+        }
+        const storedProcs = localStorage.getItem(dbKey('procsList'));
+        if (storedProcs) {
+          mainProcs = JSON.parse(storedProcs);
+        }
+      } catch (e) {
+        console.warn("Local storage cache read failed:", e);
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(dbKey('tracker'), JSON.stringify(state));
+      } catch (e) {
+        console.warn("Local storage cache save failed:", e);
+      }
+      
+      if (isOnlineDB) {
+        db.collection(COL).doc('tracker').set(state).catch(err => {
+          console.error("Firestore sync error:", err);
+          updateSyncBadge(err.message);
+        });
+      }
+    }
+
+    function initSyncListeners() {
+      loadLocalCache();
+      
+      // Auto routing if fellow session was saved
+      const savedFellow = localStorage.getItem('gf_tracker_fellow');
+      if (savedFellow) {
+        session.currentFellow = savedFellow;
+        session.activeView = 'dashboard';
+      } else {
+        session.activeView = 'login';
+      }
+      renderView();
+
+      if (!isOnlineDB) {
+        updateSyncBadge();
+        return;
+      }
+
+      // 1. Tracker doc snapshot
+      db.collection(COL).doc('tracker').onSnapshot(snap => {
+        if (snap.exists) {
+          const data = snap.data();
+          state.settings = data.settings || state.settings;
+          state.patients = data.patients || [];
+          localStorage.setItem(dbKey('tracker'), JSON.stringify(state));
+        } else {
+          // Init empty database record on Firestore
+          saveState();
+        }
+        updateSyncBadge();
+        // Check for new cases to auto-sync
+        checkNewOrCases();
+        renderView();
+      }, err => {
+        console.error("Sync error:", err);
+        updateSyncBadge(err.message);
+      });
+
+      // 2. OR Logbook snapshot (Read-only dependency)
+      db.collection(COL).doc('logbook').onSnapshot(snap => {
+        if (snap.exists) {
+          const data = snap.data();
+          orLog = data.entries || [];
+          localStorage.setItem(dbKey('logbook'), JSON.stringify({ entries: orLog }));
+          checkNewOrCases();
+          renderView();
+        }
+      });
+
+      // 3. Settings snapshot (Read-only dependency for SURGICAL PROCEDURES)
+      db.collection(COL).doc('settings').onSnapshot(snap => {
+        if (snap.exists) {
+          const data = snap.data();
+          if (data && data.procs) {
+            mainProcs = data.procs;
+            localStorage.setItem(dbKey('procsList'), JSON.stringify(data.procs));
+            renderView();
+          }
+        }
+      });
+    }
+
+    // Auto-create patient from OR log if it doesn't exist
+    function checkNewOrCases() {
+      let updated = false;
+      orLog.forEach(log => {
+        // Must match a valid HN
+        if (!log.HN || !log.date) return;
+        
+        const exists = state.patients.some(p => p.hn === log.HN && p.date === log.date);
+        if (!exists) {
+          // Log is created dynamically
+          state.patients.push({
+            id: 'p_' + log.HN + '_' + Date.now(),
+            hn: log.HN,
+            name: log.name || '',
+            fellow: log.fellow || 'SS', // defaults
+            procedure: log.procedure || 'Trabeculectomy',
+            laterality: log.laterality || 'RE',
+            date: log.date,
+            supervisor: log.supervisor || '',
+            baseline: {
+              age: '',
+              sex: '',
+              diagnosis: log.diagnosis || '',
+              lensStatus: '',
+              prevSurgery: '',
+              customValues: {}
+            },
+            visits: []
+          });
+          updated = true;
+        }
+      });
+      if (updated) {
+        saveState();
+      }
+    }
+
+    // Force manual import of OR Log cases
+    window.syncFromOrLog = function() {
+      checkNewOrCases();
+      alert("OR Cases synchronized successfully!");
+      renderView();
+    };
+
+    function updateSyncBadge(errStr = '') {
+      const container = document.getElementById('sync-badge-container');
+      if (!container) return;
+      if (!isOnlineDB) {
+        container.innerHTML = `<span class="px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-white/5 text-[10px] font-bold">Offline</span>`;
+      } else if (errStr) {
+        container.innerHTML = `<span class="px-2.5 py-0.5 rounded-full bg-rose-955/30 text-rose-450 border border-rose-900/30 text-[10px] font-bold" title="${errStr}">Sync Error</span>`;
+      } else {
+        container.innerHTML = `<span class="px-2.5 py-0.5 rounded-full bg-emerald-955/30 text-emerald-450 border border-emerald-900/30 text-[10px] font-bold flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Synced</span>`;
+      }
+    }
+
+    // ── THEME SUPPORT ─────────────────────────────────────
+    window.toggleTheme = function() {
+      const isLight = document.body.classList.toggle('light-theme');
+      localStorage.setItem('gf_theme', isLight ? 'light' : 'dark');
+      updateThemeButton();
+    };
+    function updateThemeButton() {
+      const btn = document.getElementById('theme-toggle-btn');
+      if (!btn) return;
+      const isLight = document.body.classList.contains('light-theme');
+      btn.innerHTML = isLight ? '☀️' : '🌙';
+    }
+
+    // ── APP NAVIGATION ────────────────────────────────────
+    window.routeTo = function(view, id = null) {
+      session.activeView = view;
+      if (id) session.selectedPatientId = id;
+      if (view === 'dashboard') {
+        session.isEditingBaseline = false;
+      }
+      renderView();
+    };
+
+    window.selectFellow = function(fellow) {
+      session.currentFellow = fellow;
+      localStorage.setItem('gf_tracker_fellow', fellow);
+      session.activeView = 'dashboard';
+      renderView();
+    };
+
+    window.logoutFellow = function() {
+      session.currentFellow = null;
+      localStorage.removeItem('gf_tracker_fellow');
+      session.activeView = 'login';
+      renderView();
+    };
+
+    // ── MAIN RENDER PIPELINE ──────────────────────────────
+    function renderView() {
+      const main = document.getElementById('main-content');
+      const headerLabel = document.getElementById('header-fellow-label');
+      const importBtn = document.getElementById('header-sync-btn-container');
+
+      if (session.currentFellow) {
+        headerLabel.innerText = `${session.currentFellow} Fellow Portals`;
+        importBtn.classList.remove('hidden');
+      } else {
+        headerLabel.innerText = "Glaucoma Fellow Patient Database";
+        importBtn.classList.add('hidden');
+      }
+
+      switch (session.activeView) {
+        case 'login':
+          renderLogin(main);
+          break;
+        case 'dashboard':
+          renderDashboard(main);
+          break;
+        case 'profile':
+          renderProfile(main);
+          break;
+        case 'settings':
+          renderSettings(main);
+          break;
+      }
+    }
+
+    // ── LOGIN SCREEN ──────────────────────────────────────
+    function renderLogin(container) {
+      container.innerHTML = `
+        <div class="flex flex-col items-center justify-center min-h-[60vh] gap-6 max-w-md mx-auto text-center">
+          <div class="space-y-2">
+            <h2 class="font-outfit font-extrabold text-2xl text-slate-100">Access Fellow Databases</h2>
+            <p class="text-xs text-slate-400">Select your profile category to track postoperative IOP timelines, checkups, and analytics.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4 w-full pt-4">
+            <button onclick="selectFellow('SS')" class="glass-card hover:bg-blue-600/10 hover:border-blue-500/50 p-6 rounded-3xl flex flex-col items-center gap-3 transition-all duration-300 active:scale-95 group">
+              <span class="w-12 h-12 bg-blue-600/10 group-hover:bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center text-xl font-bold transition-all">SS</span>
+              <div class="text-center">
+                <div class="font-bold text-slate-200 text-sm">SS Fellow</div>
+                <div class="text-[10px] text-slate-450 mt-0.5">Primary Portal</div>
+              </div>
+            </button>
+            <button onclick="selectFellow('MN')" class="glass-card hover:bg-orange-600/10 hover:border-orange-500/50 p-6 rounded-3xl flex flex-col items-center gap-3 transition-all duration-300 active:scale-95 group">
+              <span class="w-12 h-12 bg-orange-600/10 group-hover:bg-orange-600/20 text-orange-400 rounded-full flex items-center justify-center text-xl font-bold transition-all">MN</span>
+              <div class="text-center">
+                <div class="font-bold text-slate-200 text-sm">MN Fellow</div>
+                <div class="text-[10px] text-slate-450 mt-0.5">Primary Portal</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDashboard(container) {
+      // Calculate Stats
+      const myPatients = state.patients.filter(p => p.fellow === session.currentFellow);
+      const activeList = session.filterScope === 'my' ? myPatients : state.patients;
+      
+      // Filter list further based on search query
+      const query = session.searchQuery.toLowerCase().trim();
+      const filteredPatients = activeList.filter(p => {
+        const matchSearch = p.hn.includes(query) || 
+                            (p.name || '').toLowerCase().includes(query) || 
+                            (p.supervisor || '').toLowerCase().includes(query);
+        const matchProc = session.filterProcedure === 'all' || p.procedure === session.filterProcedure;
+        return matchSearch && matchProc;
+      });
+
+      // Sort patients list based on header click
+      filteredPatients.sort((a, b) => {
+        let valA = '';
+        let valB = '';
+
+        if (session.sortBy === 'hn') {
+          valA = a.hn;
+          valB = b.hn;
+        } else if (session.sortBy === 'name') {
+          valA = (a.name || '').toLowerCase();
+          valB = (b.name || '').toLowerCase();
+        } else if (session.sortBy === 'procedure') {
+          valA = a.procedure;
+          valB = b.procedure;
+        } else if (session.sortBy === 'supervisor') {
+          valA = a.supervisor;
+          valB = b.supervisor;
+        } else if (session.sortBy === 'date') {
+          valA = new Date(a.date);
+          valB = new Date(b.date);
+        } else if (session.sortBy === 'iop') {
+          valA = a.visits.length > 0 ? Number(a.visits[a.visits.length - 1].iop) : -1;
+          valB = b.visits.length > 0 ? Number(b.visits[b.visits.length - 1].iop) : -1;
+        } else if (session.sortBy === 'meds') {
+          valA = a.visits.length > 0 ? Number(a.visits[a.visits.length - 1].medsCount) : -1;
+          valB = b.visits.length > 0 ? Number(b.visits[b.visits.length - 1].medsCount) : -1;
+        }
+
+        if (valA < valB) return session.sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return session.sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      // Calculate aggregated metrics
+      const totalVisits = activeList.reduce((acc, p) => acc + p.visits.length, 0);
+      const highIopCount = activeList.filter(p => {
+        if (p.visits.length === 0) return false;
+        const latest = p.visits[p.visits.length - 1];
+        return Number(latest.iop) > 21;
+      }).length;
+
+      // Stats row
+      let statsHtml = `
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="glass-card p-4 rounded-3xl space-y-1">
+            <span class="text-[10px] text-slate-455 font-bold uppercase tracking-wide">Total Patients</span>
+            <div class="text-2xl font-bold font-outfit text-slate-200">${activeList.length}</div>
+          </div>
+          <div class="glass-card p-4 rounded-3xl space-y-1">
+            <span class="text-[10px] text-slate-455 font-bold uppercase tracking-wide">My Active Portal</span>
+            <div class="text-2xl font-bold font-outfit text-blue-400">${session.currentFellow} Fellow</div>
+          </div>
+          <div class="glass-card p-4 rounded-3xl space-y-1">
+            <span class="text-[10px] text-slate-455 font-bold uppercase tracking-wide">Checkup Visits</span>
+            <div class="text-2xl font-bold font-outfit text-slate-200">${totalVisits} Logs</div>
+          </div>
+          <div class="glass-card p-4 rounded-3xl space-y-1">
+            <span class="text-[10px] text-slate-455 font-bold uppercase tracking-wide">Uncontrolled IOP (>21)</span>
+            <div class="text-2xl font-bold font-outfit text-rose-450">${highIopCount} cases</div>
+          </div>
+        </div>
+      `;
+
+      // Search & Filters bar
+      let filterBarHtml = `
+        <div class="glass-card p-4 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="flex bg-slate-900/60 p-0.5 rounded-xl border border-white/5 select-none">
+              <button onclick="setDashboardScope('my')" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${session.filterScope === 'my' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">My Patients</button>
+              <button onclick="setDashboardScope('all')" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${session.filterScope === 'all' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">All Patients</button>
+            </div>
+            <button onclick="routeTo('settings')" class="px-4 py-2 border border-slate-700/50 hover:bg-slate-800 rounded-xl text-xs font-bold text-slate-350 transition-all select-none">⚙️ Settings</button>
+            <button onclick="openExportModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-xl text-xs font-bold text-white transition-all select-none">📊 Export Data</button>
+            <button onclick="logoutFellow()" class="px-3 py-2 text-rose-400 text-xs font-bold select-none hover:underline">Logout</button>
+          </div>
+          <div class="flex flex-1 md:max-w-md gap-3">
+            <input type="text" id="dashboard-search-input" value="${session.searchQuery}" oninput="setDashboardSearch(this.value)" placeholder="Search by HN, Patient name, or Supervisor..." class="flex-1 bg-slate-900/50 text-xs border border-white/5 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <select onchange="setDashboardProcedure(this.value)" class="bg-slate-900/50 text-xs border border-white/5 rounded-xl px-4 py-2.5 focus:outline-none max-w-[150px]">
+              <option value="all">All Procedures</option>
+              ${mainProcs.map(p => `<option value="${p}" ${session.filterProcedure === p ? 'selected' : ''}>${p}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      `;
+
+      // Patient Table HTML
+      let tableRows = '';
+      filteredPatients.forEach(p => {
+        // Calculate latest IOP
+        let latestIopStr = '—';
+        let latestMedsStr = '—';
+        if (p.visits && p.visits.length > 0) {
+          const latest = p.visits[p.visits.length - 1];
+          latestIopStr = `${latest.iop} mmHg`;
+          latestMedsStr = `${latest.medsCount} drops`;
+        }
+
+        const dateStr = new Date(p.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+        const nameLabel = p.name ? p.name : '<span class="text-slate-500 italic">No name logged</span>';
+
+        tableRows += `
+          <tr class="hover:bg-slate-900/30 transition-all border-b border-white/5 last:border-0 cursor-pointer" onclick="routeTo('profile', '${p.id}')">
+            <td class="p-3.5 font-bold text-blue-400">${p.hn}</td>
+            <td class="p-3.5 font-bold text-slate-200">${nameLabel}</td>
+            <td class="p-3.5 text-slate-355"><span class="px-2 py-0.5 rounded bg-blue-900/40 text-blue-300 border border-blue-800/20 text-[10px] font-bold">${p.procedure}</span></td>
+            <td class="p-3.5 text-slate-200">${p.supervisor || '—'}</td>
+            <td class="p-3.5 text-slate-400">${dateStr}</td>
+            <td class="p-3.5 text-slate-200 font-bold">${latestIopStr}</td>
+            <td class="p-3.5 text-slate-200">${latestMedsStr}</td>
+            <td class="p-3.5 text-right">
+              <button class="px-3.5 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 rounded-xl text-xs font-bold text-slate-200 border border-white/5 transition-all">
+                Timeline →
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      if (filteredPatients.length === 0) {
+        tableRows = `
+          <tr>
+            <td colspan="8" class="p-8 text-center text-slate-500 font-medium">
+              🔍 No postoperative follow-up records found. Click "Import OR Cases" in the header to load database records.
+            </td>
+          </tr>
+        `;
+      }
+
+      const sortInd = (field) => {
+        if (session.sortBy !== field) return ' <span class="text-slate-600 opacity-40">↕</span>';
+        return session.sortOrder === 'asc' ? ' <span class="text-blue-400">▲</span>' : ' <span class="text-blue-400">▼</span>';
+      };
+
+      let tableHtml = `
+        <div class="glass-card rounded-3xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-900 border-b border-white/5 text-slate-455 font-bold uppercase tracking-wider text-left select-none">
+                  <th class="p-3.5 cursor-pointer hover:bg-slate-800/60" onclick="toggleSort('hn')">HN ${sortInd('hn')}</th>
+                  <th class="p-3.5 cursor-pointer hover:bg-slate-800/60" onclick="toggleSort('name')">Patient Name ${sortInd('name')}</th>
+                  <th class="p-3.5 cursor-pointer hover:bg-slate-800/60" onclick="toggleSort('procedure')">Procedure ${sortInd('procedure')}</th>
+                  <th class="p-3.5 cursor-pointer hover:bg-slate-800/60" onclick="toggleSort('supervisor')">Supervisor ${sortInd('supervisor')}</th>
+                  <th class="p-3.5 cursor-pointer hover:bg-slate-800/60" onclick="toggleSort('date')">Surgery Date ${sortInd('date')}</th>
+                  <th class="p-3.5 cursor-pointer hover:bg-slate-800/60" onclick="toggleSort('iop')">Latest IOP ${sortInd('iop')}</th>
+                  <th class="p-3.5 cursor-pointer hover:bg-slate-800/60" onclick="toggleSort('meds')">Latest Meds ${sortInd('meds')}</th>
+                  <th class="p-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = `
+        <div class="space-y-4">
+          ${statsHtml}
+          ${filterBarHtml}
+          ${tableHtml}
+        </div>
+      `;
+    }
+
+    // ── DASHBOARD ACTIONS ─────────────────────────────────
+    window.setDashboardScope = function(scope) {
+      session.filterScope = scope;
+      renderView();
+    };
+
+    window.setDashboardSearch = function(val) {
+      session.searchQuery = val;
+      renderView();
+    };
+
+    window.setDashboardProcedure = function(val) {
+      session.filterProcedure = val;
+      renderView();
+    };
+
+    window.toggleSort = function(field) {
+      if (session.sortBy === field) {
+        session.sortOrder = session.sortOrder === 'asc' ? 'desc' : 'asc';
+      } else {
+        session.sortBy = field;
+        session.sortOrder = 'asc';
+      }
+      renderView();
+    };
+
+    // ── PATIENT DETAIL / TIMELINE VIEW ────────────────────
+    function renderProfile(container) {
+      const p = state.patients.find(x => x.id === session.selectedPatientId);
+      if (!p) {
+        container.innerHTML = `<div class="p-8 text-center text-slate-400">Patient record not found. <button onclick="routeTo('dashboard')" class="text-blue-500">Back</button></div>`;
+        return;
+      }
+
+      // Generate Timeline Data
+      let visitsHtml = '';
+      p.visits.forEach((v, index) => {
+        const visitDateStr = new Date(v.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        const postOpLabel = getPostOpLabel(p.date, v.date);
+
+        // Generate Custom Visit Values
+        let customVisitsValHtml = '';
+        state.settings.customVisitFields.forEach(cf => {
+          const val = v.customValues?.[cf.id] || '—';
+          customVisitsValHtml += `<span class="text-slate-455">${cf.name}: <b class="text-slate-355">${val}</b> &middot; </span>`;
+        });
+
+        visitsHtml += `
+          <div class="relative pl-6 pb-6 last:pb-0 border-l border-white/5 last:border-l-transparent">
+            <!-- Timeline dot -->
+            <div class="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full ${Number(v.iop) > state.settings.targetIop ? 'bg-rose-500' : 'bg-blue-500'} border border-slate-955"></div>
+            
+            <div class="bg-slate-900/40 p-4 rounded-2xl border border-white/5 space-y-2 hover:bg-slate-900/60 transition-all">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-slate-100 text-xs">${visitDateStr}</span>
+                  <span class="ml-2 font-extrabold text-[10px] text-blue-400 uppercase bg-blue-900/30 px-2 py-0.5 rounded-full">${postOpLabel}</span>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="openVisitModal('${v.id}')" class="text-[10px] text-slate-400 hover:text-white font-semibold">Edit</button>
+                  <button onclick="deleteVisit('${v.id}')" class="text-[10px] text-rose-400 hover:text-rose-300 font-semibold">Delete</button>
+                </div>
+              </div>
+              <div class="grid grid-cols-4 gap-2 text-[11px]">
+                <div><span class="text-slate-500 block uppercase text-[9px] font-bold">IOP</span><b class="text-slate-200 text-xs">${v.iop} mmHg</b> <span class="text-slate-500 text-[10px] block">${v.tonometer}</span></div>
+                <div><span class="text-slate-500 block uppercase text-[9px] font-bold">Meds</span><b class="text-slate-200 text-xs">${v.medsCount} drops</b></div>
+                <div><span class="text-slate-500 block uppercase text-[9px] font-bold">VA</span><b class="text-slate-200 text-xs">${v.va || '—'}</b></div>
+                <div class="col-span-1"><span class="text-slate-500 block uppercase text-[9px] font-bold">Notes</span><span class="text-slate-300">${v.notes || '—'}</span></div>
+              </div>
+              ${customVisitsValHtml ? `<div class="text-[10px] pt-1 border-t border-white/5">${customVisitsValHtml}</div>` : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      if (p.visits.length === 0) {
+        visitsHtml = `
+          <div class="p-8 text-center text-slate-500 italic glass-card rounded-2xl">
+            📴 No follow-up visits logged for this patient yet. Click "＋ Add Visit Record" above to add logs.
+          </div>
+        `;
+      }
+
+      // Render Graph SVG
+      const graphSvg = renderIopGraph(p.visits);
+
+      // Render Baseline Form or Values
+      let baselineHtml = '';
+      if (session.isEditingBaseline) {
+        // Render editable inputs
+        let customBaselineInputs = '';
+        state.settings.customBaselineFields.forEach(cf => {
+          const val = p.baseline.customValues?.[cf.id] || '';
+          customBaselineInputs += `
+            <div>
+              <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">${cf.name}</label>
+              <input type="text" id="baseline-form-${cf.id}" value="${val}" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none text-xs">
+            </div>
+          `;
+        });
+
+        baselineHtml = `
+          <div class="space-y-4 text-xs">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">Patient Name</label>
+                <input type="text" id="baseline-form-name" value="${p.name || ''}" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none text-xs">
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">Diagnosis</label>
+                <select id="baseline-form-diag" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none text-xs">
+                  ${DEF_DIAGS.map(d => `<option value="${d}" ${p.baseline.diagnosis === d ? 'selected' : ''}>${d}</option>`).join('')}
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">Age</label>
+                <input type="number" id="baseline-form-age" value="${p.baseline.age || ''}" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none text-xs">
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">Sex</label>
+                <select id="baseline-form-sex" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none text-xs">
+                  <option value="Male" ${p.baseline.sex === 'Male' ? 'selected' : ''}>Male</option>
+                  <option value="Female" ${p.baseline.sex === 'Female' ? 'selected' : ''}>Female</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">Lens Status</label>
+                <select id="baseline-form-lens" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none text-xs">
+                  ${DEF_LENS.map(l => `<option value="${l}" ${p.baseline.lensStatus === l ? 'selected' : ''}>${l}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">Previous Eye Surgeries</label>
+              <input type="text" id="baseline-form-prev" value="${p.baseline.prevSurgery || ''}" placeholder="e.g. Laser PI, Phacoemulsification" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none text-xs">
+            </div>
+            ${customBaselineInputs}
+            <div class="flex gap-2 pt-2">
+              <button onclick="setEditBaseline(false)" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-355 rounded-xl font-bold">Cancel</button>
+              <button onclick="saveBaselineDetails()" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold">Save changes</button>
+            </div>
+          </div>
+        `;
+      } else {
+        // Render static values
+        let customBaselineValsHtml = '';
+        state.settings.customBaselineFields.forEach(cf => {
+          const val = p.baseline.customValues?.[cf.id] || '—';
+          customBaselineValsHtml += `
+            <div class="flex justify-between py-1.5 border-b border-white/5 last:border-0">
+              <span class="text-slate-455">${cf.name}</span>
+              <span class="font-bold text-slate-200">${val}</span>
+            </div>
+          `;
+        });
+
+        baselineHtml = `
+          <div class="space-y-3.5 text-xs">
+            <div class="flex justify-between py-1.5 border-b border-white/5">
+              <span class="text-slate-455">Diagnosis</span>
+              <span class="font-bold text-slate-200">${p.baseline.diagnosis || '—'}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-white/5">
+              <span class="text-slate-455">Age / Sex</span>
+              <span class="font-bold text-slate-200">${p.baseline.age || '—'} y.o &middot; ${p.baseline.sex || '—'}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-white/5">
+              <span class="text-slate-455">Lens Status</span>
+              <span class="font-bold text-slate-200">${p.baseline.lensStatus || '—'}</span>
+            </div>
+            <div class="flex justify-between py-1.5 border-b border-white/5">
+              <span class="text-slate-455">Previous Surgeries</span>
+              <span class="font-bold text-slate-200">${p.baseline.prevSurgery || '—'}</span>
+            </div>
+            ${customBaselineValsHtml}
+            <button onclick="setEditBaseline(true)" class="w-full py-2 bg-slate-800 hover:bg-slate-700 border border-white/5 rounded-xl font-bold text-slate-300 transition-all mt-4">
+              📝 Edit Baseline Characteristics
+            </button>
+          </div>
+        `;
+      }
+
+      container.innerHTML = `
+        <div class="space-y-4">
+          <!-- Back navigation -->
+          <div class="flex items-center justify-between">
+            <button onclick="routeTo('dashboard')" class="text-xs font-bold text-blue-400 hover:underline flex items-center gap-1.5">
+              &larr; Back to Dashboard
+            </button>
+            <button onclick="deletePatient()" class="text-xs font-bold text-rose-455 hover:underline">
+              ⚠️ Delete Patient Record
+            </button>
+          </div>
+
+          <!-- Profile Main Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <!-- Left panel: Baseline info -->
+            <div class="md:col-span-1 glass-card p-5 rounded-3xl space-y-4 h-fit">
+              <div class="space-y-1">
+                <div class="text-[10px] text-blue-400 font-extrabold uppercase tracking-widest">${p.fellow} FELLOW CASE</div>
+                <h3 class="font-outfit font-extrabold text-xl text-slate-100">${p.name || 'Jane Doe'}</h3>
+                <div class="text-xs text-slate-400">HN: <b class="text-slate-355">${p.hn}</b></div>
+              </div>
+              
+              <div class="pt-3 border-t border-white/5 space-y-2 text-xs">
+                <div class="flex justify-between">
+                  <span class="text-slate-455">Procedure</span>
+                  <span class="font-bold text-slate-200">${p.procedure} (${p.laterality})</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-455">Surgery Date</span>
+                  <span class="font-bold text-slate-200">${new Date(p.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-455">Supervisor</span>
+                  <span class="font-bold text-slate-200">${p.supervisor || '—'}</span>
+                </div>
+              </div>
+
+              <div class="pt-3 border-t border-white/5">
+                <h4 class="font-bold text-slate-200 text-xs mb-3">Baseline Profile</h4>
+                ${baselineHtml}
+              </div>
+            </div>
+
+            <!-- Right panel: Timeline & IOP Chart -->
+            <div class="md:col-span-2 space-y-4">
+              
+              <!-- IOP Trend Chart Card -->
+              <div class="glass-card p-5 rounded-3xl space-y-3">
+                <h4 class="font-outfit font-extrabold text-xs text-slate-100 flex items-center justify-between">
+                  <span>📈 IOP & Medications Trend Line</span>
+                  <span class="text-[10px] text-slate-455 font-normal">Target threshold: ${state.settings.targetIop} mmHg</span>
+                </h4>
+                <div class="w-full flex justify-center">
+                  ${graphSvg}
+                </div>
+              </div>
+
+              <!-- Follow-up log timeline -->
+              <div class="glass-card p-5 rounded-3xl space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-white/5">
+                  <h4 class="font-outfit font-extrabold text-xs text-slate-100">📅 Postoperative Clinical Timeline</h4>
+                  <button onclick="openVisitModal()" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold text-white transition-all select-none">
+                    ＋ Add Visit Record
+                  </button>
+                </div>
+                
+                <div class="pt-2">
+                  ${visitsHtml}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      `;
+    }
+
+    // ── GRAPH PLOT ENGINE (SVG BASED) ─────────────────────
+    function renderIopGraph(visits) {
+      if (!visits || visits.length === 0) {
+        return `<div class="p-6 text-center text-slate-500 italic text-[11px]">Log post-op visits to construct target tracking graphs.</div>`;
+      }
+
+      // Dimension settings
+      const w = 550;
+      const h = 200;
+      const padding = 35;
+
+      // Extract values
+      const iops = visits.map(v => Number(v.iop) || 0);
+      const meds = visits.map(v => Number(v.medsCount) || 0);
+      const dates = visits.map(v => new Date(v.date));
+
+      const minIop = 0;
+      const maxIop = Math.max(25, ...iops) + 5;
+
+      // Render coordinates mapping helpers
+      const getX = (idx) => padding + (idx * (w - 2 * padding) / Math.max(1, visits.length - 1));
+      const getY = (val) => h - padding - (val * (h - 2 * padding) / maxIop);
+
+      // SVG path construction
+      let pathD = '';
+      let dots = '';
+      visits.forEach((v, idx) => {
+        const x = getX(idx);
+        const y = getY(v.iop);
+        
+        if (idx === 0) pathD = `M ${x} ${y}`;
+        else pathD += ` L ${x} ${y}`;
+
+        // Dot nodes with conditional color values
+        const dotColor = Number(v.iop) > state.settings.targetIop ? '#ef4444' : '#3b82f6';
+        dots += `<circle cx="${x}" cy="${y}" r="4" fill="${dotColor}" stroke="#0b0f19" stroke-width="1.5" />`;
+        // Label values above dots
+        dots += `<text x="${x}" y="${y - 8}" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="bold">${v.iop}</text>`;
+        
+        // Date label below axis
+        const labelStr = new Date(v.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        dots += `<text x="${x}" y="${h - 10}" text-anchor="middle" fill="#64748b" font-size="8">${labelStr}</text>`;
+      });
+
+      // Target IOP dotted line
+      const targetY = getY(state.settings.targetIop);
+      const targetLine = `<line x1="${padding}" y1="${targetY}" x2="${w - padding}" y2="${targetY}" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3" />
+                          <text x="${w - padding + 5}" y="${targetY + 3}" fill="#ef4444" font-size="8">Limit (${state.settings.targetIop})</text>`;
+
+      // Horizontal reference axis lines
+      let referenceGridLines = '';
+      [10, 20, 30].forEach(val => {
+        if (val < maxIop) {
+          const rY = getY(val);
+          referenceGridLines += `<line x1="${padding}" y1="${rY}" x2="${w - padding}" y2="${rY}" stroke="rgba(255,255,255,0.03)" stroke-width="1" />
+                                 <text x="${padding - 18}" y="${rY + 3}" fill="#475569" font-size="8">${val}</text>`;
+        }
+      });
+
+      return `
+        <svg width="100%" height="100%" viewBox="0 0 ${w + 40} ${h}" class="max-w-[550px] select-none">
+          <!-- Grid References -->
+          ${referenceGridLines}
+          
+          <!-- Target Limit Line -->
+          ${targetLine}
+
+          <!-- Axis Lines -->
+          <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${h - padding}" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+          <line x1="${padding}" y1="${h - padding}" x2="${w - padding}" y2="${h - padding}" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+          
+          <!-- IOP Line Graph Path -->
+          <path d="${pathD}" fill="none" stroke="#3b82f6" stroke-width="2.5" />
+          
+          <!-- Node Dots & Labels -->
+          ${dots}
+        </svg>
+      `;
+    }
+
+    // ── PATIENT BASLINE ACTIONS ───────────────────────────
+    window.setEditBaseline = function(edit) {
+      session.isEditingBaseline = edit;
+      renderView();
+    };
+
+    window.saveBaselineDetails = function() {
+      const p = state.patients.find(x => x.id === session.selectedPatientId);
+      if (!p) return;
+
+      p.name = document.getElementById('baseline-form-name').value.trim();
+      p.baseline.diagnosis = document.getElementById('baseline-form-diag').value;
+      p.baseline.age = document.getElementById('baseline-form-age').value;
+      p.baseline.sex = document.getElementById('baseline-form-sex').value;
+      p.baseline.lensStatus = document.getElementById('baseline-form-lens').value;
+      p.baseline.prevSurgery = document.getElementById('baseline-form-prev').value.trim();
+
+      // Custom fields compile
+      p.baseline.customValues = p.baseline.customValues || {};
+      state.settings.customBaselineFields.forEach(cf => {
+        const input = document.getElementById(`baseline-form-${cf.id}`);
+        if (input) {
+          p.baseline.customValues[cf.id] = input.value.trim();
+        }
+      });
+
+      saveState();
+      session.isEditingBaseline = false;
+      renderView();
+    };
+
+    window.deletePatient = function() {
+      if (!confirm("Are you sure you want to permanently delete this patient record? All visits will be deleted.")) return;
+      state.patients = state.patients.filter(x => x.id !== session.selectedPatientId);
+      saveState();
+      routeTo('dashboard');
+    };
+
+    // ── VISIT RECORD MODAL ACTIONS ────────────────────────
+    let editingVisitId = null;
+
+    window.openVisitModal = function(visitId = null) {
+      const p = state.patients.find(x => x.id === session.selectedPatientId);
+      if (!p) return;
+
+      editingVisitId = visitId;
+      const modal = document.getElementById('visit-modal');
+      const title = document.getElementById('visit-modal-title');
+      
+      const dateEl = document.getElementById('visit-form-date');
+      const iopEl = document.getElementById('visit-form-iop');
+      const tonEl = document.getElementById('visit-form-tonometer');
+      const medsEl = document.getElementById('visit-form-meds');
+      const vaEl = document.getElementById('visit-form-va');
+      const notesEl = document.getElementById('visit-form-notes');
+
+      // Custom fields DOM injector
+      const customContainer = document.getElementById('visit-custom-fields-container');
+      customContainer.innerHTML = '';
+
+      if (visitId) {
+        // Edit Visit mode
+        title.innerText = "📝 Edit Follow-up Visit";
+        const v = p.visits.find(x => x.id === visitId);
+        if (!v) return;
+
+        dateEl.value = v.date;
+        iopEl.value = v.iop;
+        tonEl.value = v.tonometer || 'Goldmann';
+        medsEl.value = v.medsCount;
+        vaEl.value = v.va || '';
+        notesEl.value = v.notes || '';
+
+        state.settings.customVisitFields.forEach(cf => {
+          const val = v.customValues?.[cf.id] || '';
+          customContainer.innerHTML += `
+            <div>
+              <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">${cf.name}</label>
+              <input type="text" id="visit-form-${cf.id}" value="${val}" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none">
+            </div>
+          `;
+        });
+      } else {
+        // Add new visit mode
+        title.innerText = "＋ Log Follow-up Visit";
+        
+        // Auto default to today
+        const now = new Date();
+        dateEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        iopEl.value = '';
+        tonEl.value = 'Goldmann';
+        medsEl.value = '';
+        vaEl.value = '';
+        notesEl.value = '';
+
+        state.settings.customVisitFields.forEach(cf => {
+          customContainer.innerHTML += `
+            <div>
+              <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">${cf.name}</label>
+              <input type="text" id="visit-form-${cf.id}" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none">
+            </div>
+          `;
+        });
+      }
+
+      modal.classList.remove('hidden');
+    };
+
+    window.closeVisitModal = function() {
+      document.getElementById('visit-modal').classList.add('hidden');
+    };
+
+    window.saveVisitCard = function() {
+      const p = state.patients.find(x => x.id === session.selectedPatientId);
+      if (!p) return;
+
+      const date = document.getElementById('visit-form-date').value;
+      const iop = Number(document.getElementById('visit-form-iop').value);
+      const tonometer = document.getElementById('visit-form-tonometer').value;
+      const medsCount = Number(document.getElementById('visit-form-meds').value || 0);
+      const va = document.getElementById('visit-form-va').value.trim();
+      const notes = document.getElementById('visit-form-notes').value.trim();
+
+      if (!date || isNaN(iop)) {
+        alert("Visit date and valid IOP are required.");
+        return;
+      }
+
+      // Collect custom visit fields values
+      const customValues = {};
+      state.settings.customVisitFields.forEach(cf => {
+        const input = document.getElementById(`visit-form-${cf.id}`);
+        if (input) {
+          customValues[cf.id] = input.value.trim();
+        }
+      });
+
+      if (editingVisitId) {
+        // Save existing visit
+        p.visits = p.visits.map(v => {
+          if (v.id === editingVisitId) {
+            return {
+              ...v, date, iop, tonometer, medsCount, va, notes, customValues,
+              daysElapsed: Math.round((new Date(date) - new Date(p.date)) / (1000 * 60 * 60 * 24)),
+              weeksLabel: getPostOpLabel(p.date, date)
+            };
+          }
+          return v;
+        });
+      } else {
+        // Append new visit
+        p.visits.push({
+          id: 'v_' + Date.now(),
+          date,
+          iop,
+          tonometer,
+          medsCount,
+          va,
+          notes,
+          customValues,
+          daysElapsed: Math.round((new Date(date) - new Date(p.date)) / (1000 * 60 * 60 * 24)),
+          weeksLabel: getPostOpLabel(p.date, date)
+        });
+      }
+
+      // Re-sort visits chronologically
+      p.visits.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      saveState();
+      closeVisitModal();
+      renderView();
+    };
+
+    // ── SETTINGS VIEW (CUSTOM FIELDS) ─────────────────────
+    function renderSettings(container) {
+      let baselineFieldsHtml = '';
+      state.settings.customBaselineFields.forEach(cf => {
+        baselineFieldsHtml += `
+          <div class="flex items-center justify-between bg-slate-900/40 px-4 py-2.5 rounded-xl border border-white/5">
+            <span class="font-semibold text-slate-200">${cf.name} <span class="text-[9px] text-slate-500 uppercase">(${cf.type})</span></span>
+            <button onclick="removeCustomField('baseline', '${cf.id}')" class="text-rose-450 hover:text-rose-300 font-bold">Delete</button>
+          </div>
+        `;
+      });
+      if (state.settings.customBaselineFields.length === 0) {
+        baselineFieldsHtml = `<div class="text-slate-500 italic text-[11px] p-4 text-center">No custom baseline fields defined.</div>`;
+      }
+
+      let visitFieldsHtml = '';
+      state.settings.customVisitFields.forEach(cf => {
+        visitFieldsHtml += `
+          <div class="flex items-center justify-between bg-slate-900/40 px-4 py-2.5 rounded-xl border border-white/5">
+            <span class="font-semibold text-slate-200">${cf.name} <span class="text-[9px] text-slate-500 uppercase">(${cf.type})</span></span>
+            <button onclick="removeCustomField('visit', '${cf.id}')" class="text-rose-455 hover:text-rose-300 font-bold">Delete</button>
+          </div>
+        `;
+      });
+      if (state.settings.customVisitFields.length === 0) {
+        visitFieldsHtml = `<div class="text-slate-500 italic text-[11px] p-4 text-center">No custom visit fields defined.</div>`;
+      }
+
+      container.innerHTML = `
+        <div class="space-y-4 max-w-2xl mx-auto">
+          <div class="flex justify-between items-center">
+            <button onclick="routeTo('dashboard')" class="text-xs font-bold text-blue-400 hover:underline">
+              &larr; Back to Dashboard
+            </button>
+            <h3 class="font-outfit font-extrabold text-base text-slate-100">⚙️ Customized Application Settings</h3>
+          </div>
+
+          <!-- Target Threshold -->
+          <div class="glass-card p-5 rounded-3xl space-y-3">
+            <h4 class="font-bold text-slate-200 text-xs">Target Postoperative Threshold</h4>
+            <div class="flex items-center gap-4 text-xs">
+              <div class="flex-1">
+                <label class="block text-[10px] text-slate-455 font-bold uppercase mb-1">Dotted Line Threshold (mmHg)</label>
+                <input type="number" id="settings-target-iop" value="${state.settings.targetIop}" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2.5 focus:outline-none">
+              </div>
+              <button onclick="saveTargetThreshold()" class="mt-5 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white transition-all select-none">
+                Save Target
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom Baseline Fields -->
+          <div class="glass-card p-5 rounded-3xl space-y-4">
+            <div class="flex justify-between items-center border-b border-white/5 pb-2">
+              <h4 class="font-bold text-slate-200 text-xs">Custom Baseline Characteristics</h4>
+              <span class="text-[10px] text-slate-400">Added to pre-op diagnostic records</span>
+            </div>
+            
+            <div class="space-y-2">
+              ${baselineFieldsHtml}
+            </div>
+
+            <div class="pt-3 border-t border-white/5 space-y-3 text-xs">
+              <h5 class="font-bold text-slate-350">＋ Add Custom Baseline Field</h5>
+              <div class="grid grid-cols-2 gap-3">
+                <input type="text" id="add-baseline-name" placeholder="e.g. C/D Ratio or Visual Field MD" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none">
+                <select id="add-baseline-type" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none">
+                  <option value="text">Text value</option>
+                  <option value="number">Numeric value</option>
+                </select>
+              </div>
+              <button onclick="addCustomField('baseline')" class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white transition-all select-none">
+                Add Field
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom Visit Fields -->
+          <div class="glass-card p-5 rounded-3xl space-y-4">
+            <div class="flex justify-between items-center border-b border-white/5 pb-2">
+              <h4 class="font-bold text-slate-200 text-xs">Custom Timeline Visit Characteristics</h4>
+              <span class="text-[10px] text-slate-400">Added to daily post-op follow-up logs</span>
+            </div>
+            
+            <div class="space-y-2">
+              ${visitFieldsHtml}
+            </div>
+
+            <div class="pt-3 border-t border-white/5 space-y-3 text-xs">
+              <h5 class="font-bold text-slate-355">＋ Add Custom Visit Field</h5>
+              <div class="grid grid-cols-2 gap-3">
+                <input type="text" id="add-visit-name" placeholder="e.g. Laser Suturotomy (Yes/No)" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none">
+                <select id="add-visit-type" class="w-full bg-slate-900 border border-white/5 rounded-xl p-2 focus:outline-none">
+                  <option value="text">Text value</option>
+                  <option value="number">Numeric value</option>
+                </select>
+              </div>
+              <button onclick="addCustomField('visit')" class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white transition-all select-none">
+                Add Field
+              </button>
+            </div>
+          </div>
+
+        </div>
+      `;
+    }
+
+    window.saveTargetThreshold = function() {
+      const val = Number(document.getElementById('settings-target-iop').value || 15);
+      state.settings.targetIop = val;
+      saveState();
+      alert("Threshold target saved successfully!");
+      renderView();
+    };
+
+    window.addCustomField = function(scope) {
+      const nameInput = document.getElementById(`add-${scope}-name`);
+      const typeInput = document.getElementById(`add-${scope}-type`);
+      
+      const name = nameInput.value.trim();
+      const type = typeInput.value;
+
+      if (!name) {
+        alert("Please enter a valid characteristic name.");
+        return;
+      }
+
+      const newField = {
+        id: 'cf_' + Date.now(),
+        name,
+        type
+      };
+
+      if (scope === 'baseline') {
+        state.settings.customBaselineFields.push(newField);
+      } else {
+        state.settings.customVisitFields.push(newField);
+      }
+
+      saveState();
+      nameInput.value = '';
+      renderView();
+    };
+
+    window.removeCustomField = function(scope, fieldId) {
+      if (!confirm("Are you sure you want to delete this field? All saved values under this key will be deleted from patient timelines.")) return;
+      
+      if (scope === 'baseline') {
+        state.settings.customBaselineFields = state.settings.customBaselineFields.filter(f => f.id !== fieldId);
+      } else {
+        state.settings.customVisitFields = state.settings.customVisitFields.filter(f => f.id !== fieldId);
+      }
+
+      saveState();
+      renderView();
+    };
+
+    window.openExportModal = function() {
+      const select = document.getElementById('export-procedure-select');
+      if (select) {
+        select.innerHTML = `<option value="all">All Procedures (Combined)</option>` + 
+          mainProcs.map(p => `<option value="${p}">${p}</option>`).join('');
+      }
+      document.getElementById('export-modal').classList.remove('hidden');
+    };
+    window.closeExportModal = function() {
+      document.getElementById('export-modal').classList.add('hidden');
+    };
+
+    window.triggerCsvExport = function() {
+      const proc = document.getElementById('export-procedure-select').value;
+      const incBaseline = document.getElementById('export-col-baseline').checked;
+      const incSurgery = document.getElementById('export-col-surgery').checked;
+      const incVisits = document.getElementById('export-col-visits').checked;
+
+      // Filter patients to export
+      let list = state.patients;
+      if (proc !== 'all') {
+        list = list.filter(p => p.procedure === proc);
+      }
+
+      if (list.length === 0) {
+        alert("No patient records matching selection to export.");
+        return;
+      }
+
+      // Find max visits to create dynamic visit columns
+      let maxVisits = 0;
+      list.forEach(p => {
+        if (p.visits.length > maxVisits) maxVisits = p.visits.length;
+      });
+
+      // Construct CSV Header
+      let headers = ['Patient ID', 'HN', 'Surgeon Fellow'];
+      
+      if (incSurgery) {
+        headers.push('Procedure', 'Laterality', 'Surgery Date', 'Supervisor');
+      }
+      if (incBaseline) {
+        headers.push('Diagnosis', 'Age', 'Sex', 'Lens Status', 'Previous Surgeries');
+        // Add custom baseline fields
+        state.settings.customBaselineFields.forEach(cf => {
+          headers.push(cf.name);
+        });
+      }
+      if (incVisits) {
+        for (let i = 1; i <= maxVisits; i++) {
+          headers.push(`Visit ${i} Date`, `Visit ${i} Post-Op`, `Visit ${i} IOP`, `Visit ${i} Meds`, `Visit ${i} VA`, `Visit ${i} Notes`);
+          state.settings.customVisitFields.forEach(cf => {
+            headers.push(`Visit ${i} ${cf.name}`);
+          });
+        }
+      }
+
+      // Compile CSV rows
+      const rows = [headers.map(h => `"${h.replace(/"/g, '""')}"`).join(',')];
+
+      list.forEach(p => {
+        let rowData = [p.id, p.hn, p.fellow];
+
+        if (incSurgery) {
+          rowData.push(p.procedure, p.laterality, p.date, p.supervisor);
+        }
+        if (incBaseline) {
+          rowData.push(
+            p.baseline.diagnosis || '',
+            p.baseline.age || '',
+            p.baseline.sex || '',
+            p.baseline.lensStatus || '',
+            p.baseline.prevSurgery || ''
+          );
+          state.settings.customBaselineFields.forEach(cf => {
+            rowData.push(p.baseline.customValues?.[cf.id] || '');
+          });
+        }
+        if (incVisits) {
+          for (let i = 0; i < maxVisits; i++) {
+            const v = p.visits[i];
+            if (v) {
+              const elapsedLabel = getPostOpLabel(p.date, v.date);
+              rowData.push(v.date, elapsedLabel, v.iop, v.medsCount, v.va || '', v.notes || '');
+              state.settings.customVisitFields.forEach(cf => {
+                rowData.push(v.customValues?.[cf.id] || '');
+              });
+            } else {
+              // Fill blanks
+              rowData.push('', '', '', '', '', '');
+              state.settings.customVisitFields.forEach(() => rowData.push(''));
+            }
+          }
+        }
+
+        const rowCsv = rowData.map(val => {
+          const str = String(val === null || val === undefined ? '' : val);
+          return `"${str.replace(/"/g, '""')}"`;
+        }).join(',');
+
+        rows.push(rowCsv);
+      });
+
+      // Download CSV file trigger
+      const csvContent = "\uFEFF" + rows.join("\n"); // Include UTF-8 BOM for Excel Thai language support
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      
+      const fileName = `Glaucoma_Tracker_${proc}_${Date.now()}.csv`;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      closeExportModal();
+    };
+
+    // ── INITIALIZATION ────────────────────────────────────
+    window.addEventListener('load', () => {
+      // Load dark/light theme setting
+      const savedTheme = localStorage.getItem('gf_theme');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+      } else {
+        document.body.classList.remove('light-theme');
+      }
+      updateThemeButton();
+
+      // Setup Firestore real-time bindings
+      initSyncListeners();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Glaucoma Fellowship 2026–2027</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<style>
+@media print{.no-print{display:none!important}.print-only{display:block!important}}
+.print-only{display:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.live-dot{animation:blink 1.5s infinite}
+</style>
+</head>
+<body class="bg-slate-100"><div id="root"></div>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyDei4WwO7zZgnhcINOlyl_FLxKMr1U-uqY",authDomain:"glaucoma-fellowship.firebaseapp.com",projectId:"glaucoma-fellowship",storageBucket:"glaucoma-fellowship.firebasestorage.app",messagingSenderId:"687596886857",appId:"1:687596886857:web:1e124cf2aa382f05901898"});
+window._db=firebase.firestore();window._db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+</script>
+<script type="text/babel">
+const {useState,useMemo,useEffect,useRef}=React;
+const db=window._db;
+const COL='gf_v6';
+
+// ── CONSTANTS ─────────────────────────────────────────
+const ACTS=['OPD','OR','Research','JC','Clinic','Laser','Lecture','Self-study'];
+const DIAGS=['POAG','PACG','NTG','PXG','Neovascular GLC','Uveitic GLC','Steroid GLC','Traumatic GLC','Secondary GLC','OHT','GLC Suspect','Congenital GLC'];
+const PRE_ST=['Scheduled','Ready','Done','Cancelled'];
+const MONTHS=[{y:2026,m:6,lb:'Jul 2026'},{y:2026,m:7,lb:'Aug 2026'},{y:2026,m:8,lb:'Sep 2026'},{y:2026,m:9,lb:'Oct 2026'},{y:2026,m:10,lb:'Nov 2026'},{y:2026,m:11,lb:'Dec 2026'},{y:2027,m:0,lb:'Jan 2027'},{y:2027,m:1,lb:'Feb 2027'},{y:2027,m:2,lb:'Mar 2027'},{y:2027,m:3,lb:'Apr 2027'},{y:2027,m:4,lb:'May 2027'},{y:2027,m:5,lb:'Jun 2027'}];
+const TH_HOL={'2026-7-21':'อาสาฬหบูชา','2026-7-22':'เข้าพรรษา','2026-7-28':'ร.10','2026-8-12':'วันแม่','2026-10-13':'นวมินทร','2026-10-23':'ปิยมหาราช','2026-12-5':'วันพ่อ','2026-12-10':'รัฐธรรมนูญ','2026-12-31':'สิ้นปี','2027-1-1':'ขึ้นปีใหม่','2027-2-20':'มาฆบูชา','2027-4-6':'วันจักรี','2027-4-13':'สงกรานต์','2027-4-14':'สงกรานต์','2027-4-15':'สงกรานต์','2027-5-1':'แรงงาน','2027-5-4':'ฉัตรมงคล','2027-5-11':'วิสาขบูชา'};
+const ACL={OPD:'bg-blue-100 text-blue-700',OR:'bg-red-100 text-red-700',Research:'bg-emerald-100 text-emerald-700',JC:'bg-purple-100 text-purple-700',Clinic:'bg-orange-100 text-orange-700',Laser:'bg-cyan-100 text-cyan-700',Lecture:'bg-indigo-100 text-indigo-700','Self-study':'bg-gray-100 text-gray-600'};
+const WDAYS=['Mon','Tue','Wed','Thu','Fri'];
+const TMPLS=['A','B','C'];
+const SS_COLOR='#2563eb';
+const MN_COLOR='#ea580c';
+const DEF_SETT={lineWorkerUrl:'',ssLineId:'',mnLineId:'',morningNotifyTime:'06:00',eveningNotifyTime:'20:00',appPassword:'',targets:{Trabeculectomy:20,'Ahmed Valve':10,'MIGS–iStent':5,CPC:10,SLT:20,'YAG PI':15},sups:['กุลวรรณ','นพคุณ','สุพัตรา','อรอร','ดวงดาว','เพ็ญพรรณ'],maOpts:['Morning Report','Photo Quiz','Journal Club','Case Discussion','Grand Round','Interesting Case','M&M Conference','Laser Teaching'],procs:['Trabeculectomy','Ahmed Valve','MIGS–iStent','MIGS–KDB Goniotomy','CPC','Bleb Revision','Needling+5FU','Phaco+Trab','SLT','YAG PI','ALT','5-FU Injection','GATT','ECP'],morningActSched:['Morning Report','Photo Quiz','Journal Club','Case Discussion','Grand Round']};
+
+// ── HELPERS ───────────────────────────────────────────
+const hk=(y,m,d)=>`${y}-${m}-${d}`;
+const isHol=(y,m,d)=>!!TH_HOL[hk(y,m,d)];
+const fds=(y,m,d)=>`${y}${String(m+1).padStart(2,'0')}${String(d).padStart(2,'0')}`;
+const addDay=s=>{const n=new Date(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8)+1);return`${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}`;};
+const dStr=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const weekOcc=date=>Math.ceil(date.getDate()/7);
+const emptyCell=()=>({wo:{1:{act:'OPD',sup:''},2:{act:'OPD',sup:''},3:{act:'OPD',sup:''},4:{act:'OPD',sup:''},5:{act:'OPD',sup:''}}});
+const emptyRow=()=>Array(5).fill(null).map(()=>emptyCell());
+const emptyTpl=()=>({am:emptyRow(),pm:emptyRow()});
+const initMR=()=>{const r={};MONTHS.forEach(({y,m})=>['SS','MN'].forEach(f=>{r[`${f}-${y}-${m}`]={template:'none',am:emptyRow(),pm:emptyRow()};}));return r;};
+
+function resolveCell(mr,fel,y,m,date){
+  const wr=mr?.[`${fel}-${y}-${m}`];if(!wr)return null;
+  const dow=date.getDay();if(dow<1||dow>5)return null;
+  const di=dow-1,occ=weekOcc(date);
+  const amCell=wr.am?.[di];const pmCell=wr.pm?.[di];
+  const amW=amCell?.wo?.[occ]||{act:'',sup:''};
+  const pmW=pmCell?.wo?.[occ]||{act:'',sup:''};
+  return{am:{act:amW.act||'OPD',sup:amW.sup||''},pm:{act:pmW.act||'OPD',sup:pmW.sup||''}};
+}
+
+function genICS(evts){const L=['BEGIN:VCALENDAR','VERSION:2.0','CALSCALE:GREGORIAN','PRODID:-//GF//EN'];evts.forEach(e=>{L.push('BEGIN:VEVENT');L.push(e.allDay?`DTSTART;VALUE=DATE:${e.s}`:`DTSTART:${e.s}`);L.push(e.allDay?`DTEND;VALUE=DATE:${e.e}`:`DTEND:${e.e}`);L.push(`SUMMARY:${e.t}`);L.push(`UID:${e.uid}@gf`);L.push('END:VEVENT');});L.push('END:VCALENDAR');return L.join('\r\n');}
+function dlFile(c,fn,mime){const b=new Blob([mime.includes('csv')?'\uFEFF'+c:c],{type:mime});const u=URL.createObjectURL(b);const a=Object.assign(document.createElement('a'),{href:u,download:fn});document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);}
+
+// ── UI ATOMS ──────────────────────────────────────────
+function FTag({f}){return<span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full text-white ${f==='SS'?'bg-blue-600':'bg-orange-600'}`}>{f}</span>;}
+function Btn({onClick,children,cls='',disabled=false}){return<button onClick={onClick} disabled={disabled} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all disabled:opacity-40 ${cls}`}>{children}</button>;}
+function Card({children,cls=''}){return<div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${cls}`}>{children}</div>;}
+function CardH({children,right}){return<div className="px-4 py-2.5 border-b bg-gray-50 font-semibold text-gray-700 text-xs flex items-center justify-between gap-2"><div className="flex-1 min-w-0">{children}</div>{right&&<div className="flex gap-1.5 shrink-0">{right}</div>}</div>;}
+function Inp({value,onChange,placeholder,cls='',type='text'}){return<input type={type} value={value||''} onChange={e=>onChange(e.target.value)} placeholder={placeholder} className={`border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-300 bg-white ${cls}`}/>;}
+function SF({value,onChange,opts,cls=''}){return<select value={value||''} onChange={e=>onChange(e.target.value)} className={`border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none ${cls}`}>{(Array.isArray(opts)?opts:[]).map(o=>{const v=typeof o==='object'?o.v:o,l=typeof o==='object'?o.lb:o;return<option key={v} value={v}>{l}</option>;})}</select>;}
+function PBar({val,max,label,right}){const p=max>0?Math.min(100,val/max*100):0;return<div className="mb-2"><div className="flex justify-between text-xs mb-0.5"><span className="text-gray-500 truncate">{label}</span><span className="font-semibold text-gray-600 ml-2 shrink-0">{right}</span></div><div className="h-1.5 bg-gray-100 rounded-full"><div className={`h-full rounded-full ${p>=80?'bg-green-400':p>=50?'bg-yellow-400':'bg-red-300'}`} style={{width:`${p}%`}}/></div></div>;}
+
+// ── PASSWORD GATE ─────────────────────────────────────
+function PasswordGate({onUnlock,hasPassword}){
+  const [pw,setPw]=useState('');
+  const [err,setErr]=useState('');
+  return<div className="flex flex-col items-center justify-center py-16 space-y-4">
+    <div className="text-4xl">🔒</div>
+    <div className="font-bold text-gray-700 text-base">Protected Section</div>
+    <div className="text-xs text-gray-400 text-center max-w-xs">
+      {hasPassword?'Enter password to access this section.':'No password set. Enter any password to unlock, then set one in Settings.'}
+    </div>
+    <div className="flex gap-2 w-full max-w-xs">
+      <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr('');}}
+        onKeyDown={e=>e.key==='Enter'&&onUnlock(pw,setErr)}
+        placeholder="Enter password…"
+        className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400"/>
+      <Btn onClick={()=>onUnlock(pw,setErr)} cls="bg-blue-600 text-white hover:bg-blue-700 px-4">Enter</Btn>
+    </div>
+    {err&&<div className="text-xs text-red-500 font-semibold">{err}</div>}
+  </div>;
+}
+
+// ── WEEK ROWS ─────────────────────────────────────────
+function WeekRows({wo,sups,onChange}){
+  return<div className="space-y-0.5">
+    {[1,2,3,4,5].map(occ=>{
+      const ov=wo?.[occ]||{act:'OPD',sup:''};
+      return<div key={occ} className="flex items-center gap-0.5">
+        <span className="text-gray-400 shrink-0 font-semibold" style={{fontSize:'9px',width:'16px'}}>W{occ}</span>
+        <select value={ov.act||'OPD'} onChange={e=>{const n={...(wo||{})};n[occ]={...ov,act:e.target.value};onChange(n);}} className={`flex-1 border rounded focus:outline-none font-semibold ${ACL[ov.act]||'bg-gray-50 text-gray-600'}`} style={{fontSize:'9px',padding:'1px 2px'}}>
+          {ACTS.map(a=><option key={a} value={a}>{a}</option>)}
+        </select>
+        {(ov.act==='OPD'||ov.act==='OR')&&<select value={ov.sup||''} onChange={e=>{const n={...(wo||{})};n[occ]={...ov,sup:e.target.value};onChange(n);}} className="border border-gray-200 rounded bg-white text-gray-500 focus:outline-none" style={{fontSize:'9px',padding:'1px 2px',flex:'1.2'}}>
+          <option value="">—</option>{(sups||[]).map(s=><option key={s} value={s}>{s.slice(0,4)}</option>)}
+        </select>}
+      </div>;
+    })}
+  </div>;
+}
+
+// ── CASE FIELDS ───────────────────────────────────────
+function CaseFields({c,onChange,procs,sups}){return<div className="grid grid-cols-2 gap-2 p-3 bg-white">
+  <div><label className="text-xs text-gray-400 block mb-0.5">HN</label><Inp value={c.HN} onChange={v=>onChange('HN',v)} placeholder="HN" cls="w-full"/></div>
+  <div><label className="text-xs text-gray-400 block mb-0.5">Laterality</label><SF value={c.laterality||'OD'} onChange={v=>onChange('laterality',v)} opts={['OD','OS','OU']} cls="w-full"/></div>
+  <div className="col-span-2"><label className="text-xs text-gray-400 block mb-0.5">Operation</label><SF value={c.procedure||''} onChange={v=>onChange('procedure',v)} opts={['',...(procs||[])]} cls="w-full"/></div>
+  <div className="col-span-2"><label className="text-xs text-gray-400 block mb-0.5">Diagnosis</label><SF value={c.diagnosis||DIAGS[0]} onChange={v=>onChange('diagnosis',v)} opts={DIAGS} cls="w-full"/></div>
+  <div className="col-span-2"><label className="text-xs text-gray-400 block mb-0.5">Supervisor</label><SF value={c.supervisor||''} onChange={v=>onChange('supervisor',v)} opts={['',...(sups||[])]} cls="w-full"/></div>
+  <div className="col-span-2"><label className="text-xs text-gray-400 block mb-0.5">Notes</label><textarea value={c.notes||''} onChange={e=>onChange('notes',e.target.value)} rows={2} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none resize-none bg-white"/></div>
+</div>;}
+
+// ── PROCEDURE MODAL ───────────────────────────────────
+function ProcModal({proc,fellow,orLog,onClose}){
+  const [fMi,setFMi]=useState(-1);
+  const [q,setQ]=useState('');
+  const rows=useMemo(()=>orLog.filter(e=>e.fellow===fellow&&e.procedure===proc&&(fMi<0||(()=>{const[ey,em]=e.date.split('-').map(Number);return ey===MONTHS[fMi].y&&em-1===MONTHS[fMi].m;})())&&(!q||(e.HN||'').includes(q)||(e.supervisor||'').includes(q)||(e.diagnosis||'').toLowerCase().includes(q.toLowerCase()))).sort((a,b)=>a.date.localeCompare(b.date)),[orLog,proc,fellow,fMi,q]);
+  function csv(){dlFile('Date,HN,Diagnosis,Laterality,Supervisor,Notes\n'+rows.map(r=>`${r.date},${r.HN||''},"${r.diagnosis||''}",${r.laterality||''},${r.supervisor||''},"${r.notes||''}"`).join('\n'),`${proc.replace(/[^a-z0-9]/gi,'_')}_${fellow}.csv`,'text/csv;charset=utf-8');}
+  return<div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end md:items-center justify-center p-3">
+    <Card cls="w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <CardH right={<div className="flex gap-2"><Btn onClick={csv} cls="bg-green-600 text-white">📥 CSV</Btn><Btn onClick={onClose} cls="text-gray-400">✕</Btn></div>}>⚕️ {proc} — <FTag f={fellow}/> <span className="ml-2 text-gray-400">({rows.length})</span></CardH>
+      <div className="p-3 border-b flex gap-2 flex-wrap">
+        <SF value={String(fMi)} onChange={v=>setFMi(parseInt(v))} opts={[{v:'-1',lb:'All months'},...MONTHS.map((mo,i)=>({v:String(i),lb:mo.lb}))]}/>
+        <Inp value={q} onChange={setQ} placeholder="Search HN, supervisor, diagnosis…" cls="flex-1 min-w-32"/>
+      </div>
+      <div className="overflow-auto flex-1">
+        <table className="w-full text-xs min-w-max">
+          <thead><tr className="bg-gray-50 border-b text-gray-500"><th className="p-2 text-left">Date</th><th className="p-2 text-left">HN</th><th className="p-2 text-left">Diagnosis</th><th className="p-2 text-left">Lat</th><th className="p-2 text-left">Supervisor</th><th className="p-2 text-left">Notes</th></tr></thead>
+          <tbody>{rows.map((r,i)=><tr key={r.id} className={`border-b ${i%2?'bg-slate-50':''}`}><td className="p-2 font-medium">{r.date}</td><td className="p-2">{r.HN||'—'}</td><td className="p-2 max-w-32 truncate">{r.diagnosis||'—'}</td><td className="p-2">{r.laterality||'—'}</td><td className="p-2">{r.supervisor||'—'}</td><td className="p-2 max-w-40 truncate">{r.notes||'—'}</td></tr>)}
+          {rows.length===0&&<tr><td colSpan={6} className="p-8 text-center text-gray-400">No cases</td></tr>}</tbody>
+        </table>
+      </div>
+    </Card>
+  </div>;
+}
+
+// ── PRINT VIEW ────────────────────────────────────────
+function PrintView({mr,sett,mi,onClose}){
+  const{y,m,lb}=MONTHS[mi];
+  const days=new Date(y,m+1,0).getDate();
+  return<div className="fixed inset-0 bg-white z-50 overflow-auto p-6">
+    <div className="flex justify-between items-center mb-4 no-print">
+      <h2 className="font-bold text-lg">Print Preview — {lb}</h2>
+      <div className="flex gap-2"><Btn onClick={()=>window.print()} cls="bg-blue-600 text-white">🖨️ Print / PDF</Btn><Btn onClick={onClose} cls="bg-gray-100 text-gray-600">✕ Close</Btn></div>
+    </div>
+    <div className="print-only text-center font-bold text-xl mb-4">Glaucoma Fellowship — {lb}</div>
+    <table className="w-full border-collapse text-xs border border-gray-400">
+      <thead><tr className="bg-gray-100"><th className="border border-gray-400 p-1.5">Date</th><th className="border border-gray-400 p-1.5">Day</th><th className="border border-gray-400 p-1.5">08:00–09:00</th><th className="border border-gray-400 p-1.5 text-blue-700">SS 09–12</th><th className="border border-gray-400 p-1.5 text-blue-700">SS 13–16</th><th className="border border-gray-400 p-1.5 text-orange-700">MN 09–12</th><th className="border border-gray-400 p-1.5 text-orange-700">MN 13–16</th></tr></thead>
+      <tbody>{Array.from({length:days},(_,i)=>{
+        const date=new Date(y,m,i+1),dow=date.getDay();
+        const isWk=dow===0||dow===6,hol=isHol(y,m,i+1);
+        const ssC=resolveCell(mr,'SS',y,m,date),mnC=resolveCell(mr,'MN',y,m,date);
+        const mas=(sett.morningActSched||[])[dow-1]||'—';
+        return<tr key={i} className={hol?'bg-pink-50':isWk?'bg-gray-50':''}>
+          <td className="border border-gray-300 p-1 text-center font-semibold">{i+1}</td>
+          <td className="border border-gray-300 p-1 text-center">{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow]}</td>
+          <td className="border border-gray-300 p-1 text-center">{isWk||hol?(hol?TH_HOL[hk(y,m,i+1)]:'—'):mas}</td>
+          <td className="border border-gray-300 p-1">{ssC?.am?.act||'—'}{ssC?.am?.sup?` (${ssC.am.sup})`:''}</td>
+          <td className="border border-gray-300 p-1">{ssC?.pm?.act||'—'}{ssC?.pm?.sup?` (${ssC.pm.sup})`:''}</td>
+          <td className="border border-gray-300 p-1">{mnC?.am?.act||'—'}{mnC?.am?.sup?` (${mnC.am.sup})`:''}</td>
+          <td className="border border-gray-300 p-1">{mnC?.pm?.act||'—'}{mnC?.pm?.sup?` (${mnC.pm.sup})`:''}</td>
+        </tr>;
+      })}</tbody>
+    </table>
+  </div>;
+}
+
+// ── TODAY QUICK VIEW ──────────────────────────────────
+function TodayView({mr,call,offDuty,sett,orLog,preop}){
+  const [now,setNow]=useState(new Date());
+  const [viewDate,setViewDate]=useState('');
+  useEffect(()=>{const t=setInterval(()=>setNow(new Date()),30000);return()=>clearInterval(t);},[]);
+  const target=useMemo(()=>{if(!viewDate)return now;const[y,m,d]=viewDate.split('-').map(Number);return new Date(y,m-1,d);},[viewDate,now]);
+  const isToday=!viewDate;
+  const y=target.getFullYear(),m=target.getMonth(),d=target.getDate(),dow=target.getDay();
+  const h=now.getHours(),mn=now.getMinutes();
+  const isWorkday=dow>=1&&dow<=5&&!isHol(y,m,d);
+  const currentSlot=isToday?(h<7?'before':h<8?'ward':h<9?'ma':h<12?'am':h<13?'lunch':h<16?'pm':'after'):null;
+  const dutyKey=hk(y,m,d);
+  const mas=(sett.morningActSched||[])[dow-1]||'—';
+  const navDay=delta=>{const base=viewDate?new Date(viewDate+'T12:00:00'):new Date();base.setDate(base.getDate()+delta);setViewDate(dStr(base));};
+  return<Card cls="border-blue-300 border-2">
+    <div className="bg-gradient-to-r from-blue-700 to-blue-500 text-white px-4 py-2.5">
+      <div className="flex items-center gap-2">
+        {isToday&&<span className="live-dot w-2.5 h-2.5 bg-green-400 rounded-full shrink-0"/>}
+        <span className="font-bold text-sm flex-1 truncate">{target.toLocaleDateString('th-TH',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>
+        {isToday&&<span className="text-blue-200 text-xs shrink-0">{String(h).padStart(2,'0')}:{String(mn).padStart(2,'0')}</span>}
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        <button onClick={()=>navDay(-1)} className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center font-bold">‹</button>
+        <input type="date" value={viewDate||dStr(now)} onChange={e=>setViewDate(e.target.value)} min="2026-07-01" max="2027-06-30" className="flex-1 border-0 bg-blue-600 text-white text-xs rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300"/>
+        <button onClick={()=>navDay(1)} className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center font-bold">›</button>
+        {!isToday&&<button onClick={()=>setViewDate('')} className="text-xs bg-green-500 hover:bg-green-400 text-white px-2 py-1 rounded-lg font-semibold shrink-0">Today</button>}
+      </div>
+    </div>
+    {!isWorkday
+      ?<div className="p-4 text-center text-gray-400">{isHol(y,m,d)?`🏖️ ${TH_HOL[dutyKey]}`:'📴 Weekend'}</div>
+      :<div className="p-3 space-y-2">
+        <div className="grid grid-cols-4 gap-1.5">
+          <div className={`col-span-2 rounded-xl p-2.5 border ${currentSlot==='ward'?'bg-amber-50 border-amber-400 ring-1 ring-amber-400':'bg-gray-50 border-gray-200'}`}>
+            <div className="text-xs text-gray-400 mb-0.5">07:00–08:00</div>
+            <div className={`font-semibold text-xs ${currentSlot==='ward'?'text-amber-700':'text-gray-600'}`}>🏥 Ward Round</div>
+            {currentSlot==='ward'&&<span className="text-xs text-amber-400">← Now</span>}
+          </div>
+          <div className={`col-span-2 rounded-xl p-2.5 border ${currentSlot==='ma'?'bg-yellow-50 border-yellow-400 ring-1 ring-yellow-400':'bg-gray-50 border-gray-200'}`}>
+            <div className="text-xs text-gray-400 mb-0.5">08:00–09:00</div>
+            <div className={`font-semibold text-xs ${currentSlot==='ma'?'text-yellow-700':'text-gray-600'}`}>📚 {mas}</div>
+            {currentSlot==='ma'&&<span className="text-xs text-yellow-400">← Now</span>}
+          </div>
+          {['SS','MN'].map(f=>{
+            const cell=resolveCell(mr,f,y,m,target);
+            const off=offDuty[dutyKey],duty=call[dutyKey];
+            const isOff=off?.fellow===f,isOC=duty?.fellow===f;
+            const felColor=f==='SS'?'border-blue-200 bg-blue-50':'border-orange-200 bg-orange-50';
+            return<div key={f} className={`col-span-2 rounded-xl p-2.5 border ${felColor}`}>
+              <div className="flex items-center gap-1 mb-1 flex-wrap">
+                <FTag f={f}/>
+                {isOff&&<span className="text-xs text-amber-600 font-semibold">📴 Off</span>}
+                {isOC&&<span className="text-xs text-indigo-600 font-semibold">🌙 On-call</span>}
+              </div>
+              {isOff?<div className="text-xs text-amber-700">{off.reason||'Off duty'}</div>
+              :<div className="space-y-1">
+                <div className={`flex items-center gap-1 rounded px-1.5 py-0.5 ${currentSlot==='am'?'ring-1 ring-blue-400':'bg-white bg-opacity-60'}`}>
+                  <span className="text-gray-400 shrink-0" style={{fontSize:'9px'}}>09–12</span>
+                  <span className={`text-xs font-bold flex-1 truncate ${(ACL[cell?.am?.act||'OPD']||'').split(' ')[1]}`}>{cell?.am?.act||'—'}</span>
+                  {cell?.am?.sup&&<span className="text-gray-400 shrink-0" style={{fontSize:'9px'}}>{cell.am.sup.slice(0,4)}</span>}
+                </div>
+                <div className={`flex items-center gap-1 rounded px-1.5 py-0.5 ${currentSlot==='pm'?'ring-1 ring-blue-400':'bg-white bg-opacity-60'}`}>
+                  <span className="text-gray-400 shrink-0" style={{fontSize:'9px'}}>13–16</span>
+                  <span className={`text-xs font-bold flex-1 truncate ${(ACL[cell?.pm?.act||'OPD']||'').split(' ')[1]}`}>{cell?.pm?.act||'—'}</span>
+                  {cell?.pm?.sup&&<span className="text-gray-400 shrink-0" style={{fontSize:'9px'}}>{cell.pm.sup.slice(0,4)}</span>}
+                </div>
+              </div>}
+            </div>;
+          })}
+        </div>
+        {(()=>{const ds=dStr(target);const p=preop.filter(e=>e.date===ds&&e.status!=='Done');return p.length>0&&<div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5"><div className="text-xs font-semibold text-amber-700 mb-1">🟡 Pre-Op ({p.length})</div>{p.map(po=><div key={po.id} className="text-xs text-gray-600 flex gap-2 items-center"><FTag f={po.surgeon}/><span className="truncate">{po.procedure||'—'}</span><span className="text-gray-400">{po.HN}</span>{po.readyForSurgery&&<span className="text-green-600 font-semibold shrink-0">✅</span>}</div>)}</div>;})()}
+        {(()=>{const ds=dStr(target);const o=orLog.filter(e=>e.date===ds);return o.length>0&&<div className="bg-red-50 border border-red-200 rounded-xl p-2.5"><div className="text-xs font-semibold text-red-700 mb-1">🔴 OR ({o.length})</div>{o.map(oc=><div key={oc.id} className="text-xs text-gray-600 flex gap-2 items-center"><FTag f={oc.fellow}/><span className="truncate">{oc.procedure||'—'}</span><span className="text-gray-400">{oc.HN}</span></div>)}</div>;})()}
+      </div>}
+  </Card>;
+}
+
+// ════════════════════════════════════════════════════════
+function App(){
+  const [ready,setReady]=useState(false);
+  const [sync,setSync]=useState('synced');
+  const [syncAt,setSyncAt]=useState(null);
+  const [syncErr,setSyncErr]=useState('');
+  const [unlocked,setUnlocked]=useState(false); // password session
+  const [mr,setMr]=useState(initMR);
+  const [rotPats,setRotPats]=useState(()=>({A:emptyTpl(),B:emptyTpl(),C:emptyTpl()}));
+  const [call,setCall]=useState({});
+  const [offDuty,setOffDuty]=useState({});
+  const [orLog,setOrLog]=useState([]);
+  const [preop,setPreop]=useState([]);
+  const [sett,setSett]=useState(()=>({...DEF_SETT}));
+  const [tab,setTab]=useState('summary');
+  const [sMi,setSMi]=useState(0);
+  const [rFel,setRFel]=useState('SS');
+  const [rMi,setRMi]=useState(0);
+  const [cMi,setCMi]=useState(0);
+  const [cFel,setCFel]=useState('SS');
+  const [cMi2,setCMi2]=useState(0);
+  const [selDay,setSelDay]=useState(null);
+  const [expandId,setExpandId]=useState(null);
+  const [addOR,setAddOR]=useState(null);
+  const [newOR,setNewOR]=useState({HN:'',diagnosis:DIAGS[0],procedure:'',laterality:'OD',supervisor:'',notes:''});
+  const [addPre,setAddPre]=useState(null);
+  const [newPre,setNewPre]=useState({date:'',HN:'',name:'',procedure:'',laterality:'OD',surgeon:'SS',supervisor:'',status:'Scheduled',readyForSurgery:false,notes:'',diagnosis:''});
+  const [offModal,setOffModal]=useState(null);
+  const [offFel,setOffFel]=useState('SS');
+  const [offReason,setOffReason]=useState('');
+  const [tplTab,setTplTab]=useState('A');
+  const [newMA,setNewMA]=useState('');
+  const [newProc,setNewProc]=useState('');
+  const [newSup,setNewSup]=useState('');
+  const [newTgt,setNewTgt]=useState({proc:'',n:10});
+  const [lineMsg,setLineMsg]=useState('');
+  const [procModal,setProcModal]=useState(null);
+  const [showPrint,setShowPrint]=useState(false);
+  const [printMi,setPrintMi]=useState(0);
+  const [orSearch,setOrSearch]=useState('');
+  const [newPw,setNewPw]=useState('');
+  const [pwConfirm,setPwConfirm]=useState('');
+  const calRef=useRef(null);
+  const live=useRef({mr:initMR(),rotPats:{A:emptyTpl(),B:emptyTpl(),C:emptyTpl()},call:{},offDuty:{},orLog:[],preop:[],sett:{...DEF_SETT}});
+  const timers=useRef({});
+  const isLoading=useRef(true);
+
+  // Password check
+  function tryUnlock(pw,setErr){
+    const stored=live.current.sett.appPassword||'';
+    if(!stored){setUnlocked(true);return;} // no password set → always open
+    if(pw===stored){setUnlocked(true);}
+    else{setErr('Incorrect password');}
+  }
+
+  function saveDoc(name,data){
+    if(isLoading.current)return;
+    clearTimeout(timers.current[name]);
+    setSync('syncing');
+    timers.current[name]=setTimeout(()=>{
+      db.collection(COL).doc(name).set(data)
+        .then(()=>{setSync('synced');setSyncAt(new Date());setSyncErr('');})
+        .catch(e=>{setSync('error');setSyncErr(e.message||'Write failed');});
+    },600);
+  }
+
+  useEffect(()=>{
+    let cnt=0;const done=()=>{if(++cnt>=5){setReady(true);isLoading.current=false;}};
+    const us=[];
+    us.push(db.collection(COL).doc('schedule').onSnapshot(snap=>{
+      if(snap.exists){const d=snap.data();const rp=d.rotPats||{A:emptyTpl(),B:emptyTpl(),C:emptyTpl()};const m=d.mr||initMR();live.current.rotPats=rp;live.current.mr=m;setRotPats(JSON.parse(JSON.stringify(rp)));setMr(JSON.parse(JSON.stringify(m)));}
+      else db.collection(COL).doc('schedule').set({rotPats:live.current.rotPats,mr:live.current.mr});
+      done();
+    },()=>done()));
+    us.push(db.collection(COL).doc('oncall').onSnapshot(snap=>{
+      if(snap.exists){const d=snap.data();live.current.call=d.call||{};live.current.offDuty=d.offDuty||{};setCall(JSON.parse(JSON.stringify(d.call||{})));setOffDuty(JSON.parse(JSON.stringify(d.offDuty||{})));}
+      else db.collection(COL).doc('oncall').set({call:{},offDuty:{}});
+      done();
+    },()=>done()));
+    us.push(db.collection(COL).doc('logbook').onSnapshot(snap=>{
+      if(snap.exists){const e=snap.data().entries||[];live.current.orLog=e;setOrLog(e);}
+      else db.collection(COL).doc('logbook').set({entries:[]});
+      done();
+    },()=>done()));
+    us.push(db.collection(COL).doc('preop').onSnapshot(snap=>{
+      if(snap.exists){const e=snap.data().entries||[];live.current.preop=e;setPreop(e);}
+      else db.collection(COL).doc('preop').set({entries:[]});
+      done();
+    },()=>done()));
+    us.push(db.collection(COL).doc('settings').onSnapshot(snap=>{
+      if(snap.exists){const s={...DEF_SETT,...snap.data()};live.current.sett=s;setSett(s);}
+      else db.collection(COL).doc('settings').set(live.current.sett);
+      done();
+    },()=>done()));
+    return()=>us.forEach(u=>u());
+  },[]);
+
+  function updSched(fn){const n=fn({mr:live.current.mr,rotPats:live.current.rotPats});live.current.mr=n.mr;live.current.rotPats=n.rotPats;setMr(JSON.parse(JSON.stringify(n.mr)));setRotPats(JSON.parse(JSON.stringify(n.rotPats)));saveDoc('schedule',{mr:n.mr,rotPats:n.rotPats});}
+  function updCall(fn){const n=fn({call:live.current.call,offDuty:live.current.offDuty});live.current.call=n.call;live.current.offDuty=n.offDuty;setCall(JSON.parse(JSON.stringify(n.call)));setOffDuty(JSON.parse(JSON.stringify(n.offDuty)));saveDoc('oncall',n);}
+  function updLog(fn){const n=fn(live.current.orLog);live.current.orLog=n;setOrLog(n);saveDoc('logbook',{entries:n});}
+  function updPre(fn){const n=fn(live.current.preop);live.current.preop=n;setPreop(n);saveDoc('preop',{entries:n});}
+  function updSett(fn){const n=fn(live.current.sett);live.current.sett=n;setSett({...n});saveDoc('settings',n);}
+  const setSf=(k,v)=>updSett(s=>({...s,[k]:v}));
+
+  const setCellWo=(fel,mi,slot,di,wo)=>updSched(cur=>{const m=JSON.parse(JSON.stringify(cur.mr));const k=`${fel}-${MONTHS[mi].y}-${MONTHS[mi].m}`;if(!m[k])m[k]={template:'none',am:emptyRow(),pm:emptyRow()};m[k][slot][di].wo=wo;m[k].template='custom';return{...cur,mr:m};});
+  const applyTpl=(fel,mi,tpl)=>updSched(cur=>{const m=JSON.parse(JSON.stringify(cur.mr));const k=`${fel}-${MONTHS[mi].y}-${MONTHS[mi].m}`;const src=cur.rotPats[tpl];m[k]={template:tpl,am:JSON.parse(JSON.stringify(src.am)),pm:JSON.parse(JSON.stringify(src.pm))};return{...cur,mr:m};});
+  const copyPrev=(fel,mi)=>{if(mi===0)return;updSched(cur=>{const m=JSON.parse(JSON.stringify(cur.mr));const pk=`${fel}-${MONTHS[mi-1].y}-${MONTHS[mi-1].m}`;const ck=`${fel}-${MONTHS[mi].y}-${MONTHS[mi].m}`;if(m[pk])m[ck]=JSON.parse(JSON.stringify({...m[pk]}));return{...cur,mr:m};});};
+  const setTplCellWo=(tpl,slot,di,wo)=>updSched(cur=>{const rp=JSON.parse(JSON.stringify(cur.rotPats));if(!rp[tpl])rp[tpl]=emptyTpl();rp[tpl][slot][di].wo=wo;return{...cur,rotPats:rp};});
+
+  const toggleCall=key=>updCall(cur=>({...cur,call:{...cur.call,[key]:{...cur.call[key],fellow:cur.call[key]?.fellow==='SS'?'MN':'SS'}}}));
+  const bookOff=(key,f,reason)=>{
+    const other=f==='SS'?'MN':'SS';
+    updCall(cur=>{const nc={...cur.call};if(nc[key])nc[key]={...nc[key],fellow:other};return{call:nc,offDuty:{...cur.offDuty,[key]:{fellow:f,reason}}};});
+    notifySwap(f,`📴 Off-duty booked for ${f}. ${other} assigned on-call.`);
+  };
+  const removeOff=key=>updCall(cur=>{const od={...cur.offDuty};delete od[key];return{...cur,offDuty:od};});
+  function reBalance(){
+    const c={};const hks=[];
+    MONTHS.forEach(({y,m})=>{const days=new Date(y,m+1,0).getDate();for(let d=1;d<=days;d++){const dt=new Date(y,m,d),dow=dt.getDay(),k=hk(y,m,d);if(isHol(y,m,d)){hks.push(k);c[k]={type:'hol',fellow:null};}else if(dow>=1&&dow<=5){const w=Math.floor((dt-new Date(2026,6,1))/(7*864e5));c[k]={type:'night',fellow:w%2===0?'SS':'MN'};}else if(dow===0||dow===6){const w=Math.floor((dt-new Date(2026,6,5))/(7*864e5));c[k]={type:'wknd',fellow:w%2===0?'SS':'MN'};}}});
+    hks.forEach((k,i)=>{c[k].fellow=i%2===0?'SS':'MN';});
+    Object.entries(live.current.offDuty).forEach(([k,od])=>{if(c[k])c[k]={...c[k],fellow:od.fellow==='SS'?'MN':'SS'};});
+    updCall(cur=>({call:c,offDuty:cur.offDuty}));
+  }
+
+  const saveOR=()=>{if(!addOR)return;updLog(cur=>[...cur,{id:Date.now(),date:addOR.date,fellow:addOR.fellow,...newOR}].sort((a,b)=>a.date.localeCompare(b.date)));setAddOR(null);};
+  const updORf=(id,f,v)=>updLog(cur=>cur.map(e=>e.id===id?{...e,[f]:v}:e));
+  const delOR=id=>{if(!window.confirm('Delete case?'))return;updLog(cur=>cur.filter(e=>e.id!==id));};
+  const savePre=()=>{updPre(cur=>[...cur,{id:Date.now(),...newPre}].sort((a,b)=>a.date.localeCompare(b.date)));setAddPre(null);};
+  const updPreF=(id,f,v)=>updPre(cur=>cur.map(e=>e.id===id?{...e,[f]:v}:e));
+  const delPre=id=>{if(!window.confirm('Delete?'))return;updPre(cur=>cur.filter(e=>e.id!==id));};
+  function moveToLog(po){updLog(cur=>[...cur,{id:Date.now(),date:po.date,fellow:po.surgeon,HN:po.HN||'',diagnosis:po.diagnosis||'',procedure:po.procedure||'',laterality:po.laterality||'OD',supervisor:po.supervisor||'',notes:po.notes||''}].sort((a,b)=>a.date.localeCompare(b.date)));updPreF(po.id,'status','Done');}
+
+  async function pushMsg(userId,msg){if(!sett.lineWorkerUrl||!userId)return false;try{const r=await fetch(sett.lineWorkerUrl+'/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId,message:msg})});return r.ok;}catch{return false;}}
+  async function notifySwap(affectedFel,msg){const ssId=sett.ssLineId,mnId=sett.mnLineId;if(ssId)await pushMsg(ssId,'🔔 Duty Change\n'+msg);if(mnId)await pushMsg(mnId,'🔔 Duty Change\n'+msg);}
+  async function sendToday(fel){
+    const{ssLineId,mnLineId,morningActSched}=sett;const userId=fel==='SS'?ssLineId:mnLineId;
+    if(!sett.lineWorkerUrl||!userId){setLineMsg('⚠️ Set Worker URL & User ID in ⚙️');return;}
+    const t=new Date(),dow=t.getDay();if(dow<1||dow>5){setLineMsg('⚠️ Not a workday');return;}
+    const y=t.getFullYear(),m=t.getMonth(),d=t.getDate();if(isHol(y,m,d)){setLineMsg('⚠️ Public holiday');return;}
+    const di=dow-1;const cell=resolveCell(mr,fel,y,m,t);
+    const am=cell?.am||{act:'—',sup:''};const pm=cell?.pm||{act:'—',sup:''};
+    const mas=(morningActSched||[])[di]||'—';const duty=call[hk(y,m,d)];const off=offDuty[hk(y,m,d)];
+    const msg=`🏥 Glaucoma Fellowship\n👨‍⚕️ Fellow ${fel}\n📅 ${t.toLocaleDateString('th-TH',{weekday:'short',day:'numeric',month:'short'})}\n──────────────\n${off?.fellow===fel?`📴 OFF DUTY\n   ${off.reason||'—'}`:`⏰ 07:00  Ward Round\n⏰ 08:00  ${mas}\n⏰ 09:00  ${am.act}${am.sup?` (${am.sup})`:''}\n⏰ 13:00  ${pm.act}${pm.sup?` (${pm.sup})`:''}` }\n──────────────\n${duty?.fellow===fel?'🌙 ON CALL tonight':'✅ No night duty'}`;
+    setLineMsg('Sending…');const ok=await pushMsg(userId,msg);setLineMsg(ok?'✅ Sent!':'❌ Failed');setTimeout(()=>setLineMsg(''),5000);
+  }
+
+  function exportRotICS(fel){const evts=[];MONTHS.forEach(({y,m})=>{const days=new Date(y,m+1,0).getDate();for(let d=1;d<=days;d++){const dt=new Date(y,m,d),dow=dt.getDay();if(dow<1||dow>5||isHol(y,m,d))continue;const di=dow-1,D=fds(y,m,d),mas=(sett.morningActSched||[])[di]||'Activity';const c=resolveCell(mr,fel,y,m,dt);if(!c)continue;evts.push({s:D+'T070000',e:D+'T080000',t:'Ward Round',uid:`wr${D}${fel}`});evts.push({s:D+'T080000',e:D+'T090000',t:mas,uid:`ma${D}${fel}`});evts.push({s:D+'T090000',e:D+'T120000',t:`${c.am.act}${c.am.sup?` (${c.am.sup})`:''}`,uid:`am${D}${fel}`});evts.push({s:D+'T130000',e:D+'T160000',t:`${c.pm.act}${c.pm.sup?` (${c.pm.sup})`:''}`,uid:`pm${D}${fel}`});}});dlFile(genICS(evts),`Rotation_${fel}.ics`,'text/calendar');}
+  function exportCallICS(fel){const evts=[];Object.entries(call).forEach(([k,c])=>{if(c.fellow!==fel)return;const[y,m,d]=k.split('-').map(Number),D=fds(y,m,d);if(c.type==='night'){evts.push({s:D+'T160000',e:addDay(D)+'T080000',t:`Night Duty – ${fel}`,uid:`nd${k}`});}else{evts.push({allDay:true,s:D,e:addDay(D),t:`${c.type==='hol'?'Holiday':'Weekend'} Duty – ${fel}`,uid:`dd${k}`});}});dlFile(genICS(evts),`OnCall_${fel}.ics`,'text/calendar');}
+  function exportORcsv(fel){const rows=orLog.filter(e=>e.fellow===fel);dlFile('Date,HN,Diagnosis,Procedure,Laterality,Supervisor,Notes\n'+rows.map(r=>`${r.date},${r.HN||''},"${r.diagnosis||''}","${r.procedure||''}",${r.laterality||''},${r.supervisor||''},"${r.notes||''}"`).join('\n'),`Logbook_${fel}.csv`,'text/csv;charset=utf-8');}
+  function exportJSON(){dlFile(JSON.stringify({mr,rotPats,call,offDuty,orLog,preop,sett},null,2),`fellowship_${new Date().toISOString().slice(0,10)}.json`,'application/json');}
+  function importJSON(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.mr){live.current.mr=d.mr;setMr(d.mr);}if(d.rotPats){live.current.rotPats=d.rotPats;setRotPats(d.rotPats);}saveDoc('schedule',{mr:live.current.mr,rotPats:live.current.rotPats});if(d.call||d.offDuty){live.current.call=d.call||{};live.current.offDuty=d.offDuty||{};setCall(d.call||{});setOffDuty(d.offDuty||{});saveDoc('oncall',{call:live.current.call,offDuty:live.current.offDuty});}if(d.orLog){live.current.orLog=d.orLog;setOrLog(d.orLog);saveDoc('logbook',{entries:d.orLog});}if(d.preop){live.current.preop=d.preop;setPreop(d.preop);saveDoc('preop',{entries:d.preop});}if(d.sett){live.current.sett=d.sett;setSett(d.sett);saveDoc('settings',d.sett);}alert('✅ Restored!');}catch{alert('❌ Invalid file');}};r.readAsText(f);};i.click();}
+  function resetAll(){if(!window.confirm('Reset all data? Settings kept.'))return;const rp={A:emptyTpl(),B:emptyTpl(),C:emptyTpl()},m=initMR();live.current.rotPats=rp;live.current.mr=m;live.current.call={};live.current.offDuty={};live.current.orLog=[];live.current.preop=[];setRotPats(JSON.parse(JSON.stringify(rp)));setMr(JSON.parse(JSON.stringify(m)));setCall({});setOffDuty({});setOrLog([]);setPreop([]);saveDoc('schedule',{mr:m,rotPats:rp});saveDoc('oncall',{call:{},offDuty:{}});saveDoc('logbook',{entries:[]});saveDoc('preop',{entries:[]});}
+  async function exportPNG(){if(!calRef.current)return;try{const c=await html2canvas(calRef.current,{scale:2,backgroundColor:'#fff',useCORS:true});const a=document.createElement('a');a.download=`Fellowship_${MONTHS[sMi].lb.replace(' ','_')}.png`;a.href=c.toDataURL('image/png');a.click();}catch(e){alert('PNG failed: '+e.message);}}
+
+  const callTotals=useMemo(()=>{const s={SS:{night:0,wknd:0,hol:0},MN:{night:0,wknd:0,hol:0}};Object.values(call).forEach(({type,fellow})=>{if(fellow&&s[fellow])s[fellow][type==='night'?'night':type==='wknd'?'wknd':'hol']++;});return s;},[call]);
+  const callMth=useMemo(()=>MONTHS.map(({y,m,lb})=>{const s={lb,SS:{night:0,wknd:0,hol:0},MN:{night:0,wknd:0,hol:0}};for(let d=1;d<=new Date(y,m+1,0).getDate();d++){const c=call[hk(y,m,d)];if(c&&c.fellow&&s[c.fellow])s[c.fellow][c.type==='night'?'night':c.type==='wknd'?'wknd':'hol']++;}return s;}),[call]);
+  const orStats=useMemo(()=>{const s={SS:{total:0,byProc:{}},MN:{total:0,byProc:{}}};orLog.forEach(e=>{if(!s[e.fellow])return;s[e.fellow].total++;s[e.fellow].byProc[e.procedure]=(s[e.fellow].byProc[e.procedure]||0)+1;});return s;},[orLog]);
+  const imbalance=Math.abs(callTotals.SS.night-callTotals.MN.night)>3||Math.abs(callTotals.SS.wknd-callTotals.MN.wknd)>2;
+  const mkCalDays=mi=>{const{y,m}=MONTHS[mi];const f=new Date(y,m,1),d=[],lead=f.getDay()===0?6:f.getDay()-1;for(let i=0;i<lead;i++)d.push(null);for(let n=1;n<=new Date(y,m+1,0).getDate();n++)d.push(new Date(y,m,n));return d;};
+  const sDays=useMemo(()=>mkCalDays(sMi),[sMi]);
+  const cDays=useMemo(()=>mkCalDays(cMi),[cMi]);
+  const csDays=useMemo(()=>mkCalDays(cMi2),[cMi2]);
+  const filteredLog=useMemo(()=>{const q=orSearch.toLowerCase();if(!q)return orLog;return orLog.filter(e=>(e.HN||'').includes(q)||(e.procedure||'').toLowerCase().includes(q)||(e.supervisor||'').includes(q)||(e.diagnosis||'').toLowerCase().includes(q)||(e.notes||'').toLowerCase().includes(q));},[orLog,orSearch]);
+  const casesOnDay=(ds,fel)=>({pre:preop.filter(e=>e.date===ds&&e.surgeon===fel&&e.status!=='Done'),or:orLog.filter(e=>e.date===ds&&e.fellow===fel)});
+  const syncBadge=sync==='syncing'?<span className="flex items-center gap-1 text-xs text-yellow-200"><span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"/>Syncing</span>:sync==='error'?<span className="flex items-center gap-1 text-xs text-red-200"><span className="w-2 h-2 bg-red-400 rounded-full"/>Error</span>:<span className="flex items-center gap-1 text-xs text-green-200"><span className="w-2 h-2 bg-green-400 rounded-full"/>Synced</span>;
+  const LOCKED_TABS=['rotation','oncall','settings'];
+  const needsLock=t=>LOCKED_TABS.includes(t)&&(sett.appPassword||'')!==''&&!unlocked;
+
+  if(!ready)return<div className="flex flex-col items-center justify-center min-h-screen bg-slate-50"><div className="text-5xl mb-4">🏥</div><div className="font-bold text-gray-800 text-lg mb-1">Glaucoma Fellowship</div><div className="text-gray-400 text-sm mb-6">Connecting…</div><div className="flex gap-2">{[0,1,2].map(i=><div key={i} className="w-3 h-3 bg-blue-500 rounded-full" style={{animation:`blink 1s ${i*0.2}s infinite`}}/>)}</div></div>;
+
+  return<div className="min-h-screen bg-slate-100">
+    {showPrint&&<PrintView mr={mr} sett={sett} mi={printMi} onClose={()=>setShowPrint(false)}/>}
+    {procModal&&<ProcModal proc={procModal.proc} fellow={procModal.fellow} orLog={orLog} onClose={()=>setProcModal(null)}/>}
+
+    {/* Header */}
+    <div style={{background:'linear-gradient(135deg,#1e3a5f,#1d4ed8)'}} className="text-white px-4 py-3 shadow-xl no-print">
+      <div className="flex items-center gap-3"><span className="text-2xl">🏥</span><div className="flex-1"><h1 className="font-bold text-base">Glaucoma Fellowship 2026–2027</h1><p className="text-blue-200 text-xs">SS · MN &nbsp;|&nbsp; Jul 2026 – Jun 2027</p></div><div className="bg-blue-900 bg-opacity-50 px-2 py-1 rounded-full">{syncBadge}</div></div>
+      {syncErr&&<div className="mt-1 text-xs text-red-200 bg-red-900 bg-opacity-30 rounded px-2 py-1">⚠️ {syncErr} — <a href="https://console.firebase.google.com/project/glaucoma-fellowship/firestore/rules" target="_blank" className="underline">Fix Rules</a></div>}
+    </div>
+    <div className={`text-center text-xs py-0.5 no-print ${sync==='syncing'?'bg-yellow-50 text-yellow-600':sync==='error'?'bg-red-50 text-red-600':'bg-green-50 text-green-600 opacity-60'}`}>{sync==='syncing'?'⟳ Syncing…':sync==='error'?'❌ Sync error':syncAt?`✅ Synced ${syncAt.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`:null}</div>
+
+    {/* Tabs */}
+    <div className="flex bg-white border-b overflow-x-auto sticky top-0 z-20 shadow-sm no-print">
+      {[['summary','📊 Summary'],['rotation','🔄 Rotation'],['oncall','🌙 On-Call'],['cases','📋 Cases'],['settings','⚙️ Settings']].map(([id,lb])=>(
+        <button key={id} onClick={()=>setTab(id)} className={`px-3 py-3 text-xs font-semibold whitespace-nowrap border-b-2 flex items-center gap-1 ${tab===id?'border-blue-600 text-blue-600 bg-blue-50':'border-transparent text-gray-500 hover:bg-gray-50'}`}>
+          {lb}{LOCKED_TABS.includes(id)&&(sett.appPassword||'')!==''&&<span className="text-gray-300 text-xs">{unlocked?'🔓':'🔒'}</span>}
+        </button>
+      ))}
+    </div>
+
+    <div className="p-3 max-w-5xl mx-auto space-y-3 pb-8 no-print">
+
+      {/* ══ SUMMARY ══ */}
+      {tab==='summary'&&<div className="space-y-3">
+        {/* 1. Today Quick View */}
+        <TodayView mr={mr} call={call} offDuty={offDuty} sett={sett} orLog={orLog} preop={preop}/>
+
+        {/* 2. Month calendar */}
+        <div className="flex items-center justify-between bg-white border rounded-2xl px-4 py-2 shadow-sm">
+          <button onClick={()=>setSMi(m=>Math.max(0,m-1))} disabled={sMi===0} className="w-8 h-8 rounded-lg border disabled:opacity-30 flex items-center justify-center text-lg">‹</button>
+          <span className="font-bold">{MONTHS[sMi].lb}</span>
+          <button onClick={()=>setSMi(m=>Math.min(11,m+1))} disabled={sMi===11} className="w-8 h-8 rounded-lg border disabled:opacity-30 flex items-center justify-center text-lg">›</button>
+        </div>
+        <div className="bg-white border rounded-xl px-3 py-2 flex flex-wrap gap-3 text-xs items-center">
+          {[['#2563eb','SS AM'],['#0ea5e9','SS PM'],['#0d9488','MN AM'],['#5eead4','MN PM'],['#2563eb','SS 🌙 duty'],['#ea580c','MN 🌙 duty'],['#f59e0b','Off-duty']].map(([c,l])=><span key={l} className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block border border-gray-200" style={{background:c}}/><span className="text-gray-500">{l}</span></span>)}
+        </div>
+        <div ref={calRef} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+          <div style={{background:'linear-gradient(to right,#1d4ed8,#0369a1)'}} className="text-white text-center py-2 font-bold text-sm">{MONTHS[sMi].lb} — Fellowship Schedule</div>
+          <div className="grid grid-cols-7 bg-gray-50 border-b">{['Mo','Tu','We','Th','Fr','Sa','Su'].map(d=><div key={d} className={`text-center text-xs font-bold py-1.5 ${d==='Sa'||d==='Su'?'text-red-400':'text-gray-500'}`}>{d}</div>)}</div>
+          <div className="grid grid-cols-7">
+            {sDays.map((date,i)=>{
+              if(!date)return<div key={'e'+i} className="h-24 border-r border-b border-gray-100 bg-slate-50"/>;
+              const{y,m}=MONTHS[sMi],d=date.getDate(),dow=date.getDay(),isWk=dow===0||dow===6,hol=isHol(y,m,d),hn=TH_HOL[hk(y,m,d)];
+              const ssC=resolveCell(mr,'SS',y,m,date),mnC=resolveCell(mr,'MN',y,m,date);
+              const duty=call[hk(y,m,d)],od=offDuty[hk(y,m,d)];
+              const dutyBg=duty?.fellow==='SS'?SS_COLOR:MN_COLOR;
+              return<div key={d} className={`h-24 p-0.5 border-r border-b border-gray-100 flex flex-col gap-0.5 ${hol?'bg-pink-50':isWk?'bg-slate-50':''}`}>
+                <div className={`text-xs font-bold px-0.5 ${hol?'text-pink-500':isWk?'text-gray-300':'text-gray-700'}`}>{d}</div>
+                {hol&&<div className="text-center text-pink-300 leading-tight" style={{fontSize:'8px'}}>{hn}</div>}
+                {!isWk&&!hol&&<div className="rounded px-0.5 py-0.5" style={{background:'#eff6ff',border:'1px solid #bfdbfe'}}>
+                  <div className="flex items-center gap-0.5">
+                    <span className="font-bold shrink-0" style={{color:SS_COLOR,fontSize:'8px'}}>SS</span>
+                    <span className="rounded-sm px-0.5 text-white font-bold truncate flex-1 text-center" style={{background:SS_COLOR,fontSize:'8px'}}>{ssC?.am?.act?.slice(0,3)||'—'}</span>
+                    <span className="rounded-sm px-0.5 text-white truncate flex-1 text-center" style={{background:'#0ea5e9',fontSize:'8px'}}>{ssC?.pm?.act?.slice(0,3)||'—'}</span>
+                  </div>
+                </div>}
+                {!isWk&&!hol&&<div className="rounded px-0.5 py-0.5" style={{background:'#fff7ed',border:'1px solid #fed7aa'}}>
+                  <div className="flex items-center gap-0.5">
+                    <span className="font-bold shrink-0" style={{color:MN_COLOR,fontSize:'8px'}}>MN</span>
+                    <span className="rounded-sm px-0.5 text-white font-bold truncate flex-1 text-center" style={{background:'#0d9488',fontSize:'8px'}}>{mnC?.am?.act?.slice(0,3)||'—'}</span>
+                    <span className="rounded-sm px-0.5 truncate flex-1 text-center" style={{background:'#5eead4',fontSize:'8px',color:'#134e4a'}}>{mnC?.pm?.act?.slice(0,3)||'—'}</span>
+                  </div>
+                </div>}
+                {duty?.fellow&&<div className="rounded-sm text-center text-white font-semibold" style={{background:dutyBg,fontSize:'8px',padding:'1px'}}>{duty.fellow} {duty.type==='hol'?'🏖️':isWk?'📅':'🌙'}</div>}
+                {od&&<div className="rounded-sm text-center font-semibold bg-amber-100 text-amber-700" style={{fontSize:'8px',padding:'1px'}}>📴{od.fellow}</div>}
+              </div>;
+            })}
+          </div>
+        </div>
+
+        {/* 3. LINE */}
+        <Card><CardH>📲 LINE Notifications</CardH><div className="p-3 flex flex-wrap items-center gap-2">{['SS','MN'].map(f=><Btn key={f} onClick={()=>sendToday(f)} cls={`${f==='SS'?'bg-blue-600':'bg-orange-600'} text-white`}>📤 {f} Today</Btn>)}{lineMsg&&<span className="text-xs text-gray-500">{lineMsg}</span>}</div></Card>
+
+        {/* 4. Dashboard */}
+        <div className="flex items-center justify-between flex-wrap gap-2"><h2 className="font-bold text-gray-800">Dashboard</h2><div className="flex gap-2"><Btn onClick={exportPNG} cls="bg-purple-600 text-white">🖼️ PNG</Btn><Btn onClick={()=>{setPrintMi(sMi);setShowPrint(true);}} cls="bg-gray-700 text-white">🖨️ Print</Btn></div></div>
+        <div className="grid grid-cols-2 gap-3">
+          {['SS','MN'].map(f=><Card key={f}>
+            <CardH><span className={f==='SS'?'text-blue-600':'text-orange-600'}>{f==='SS'?'🔵':'🟠'} Fellow {f}</span></CardH>
+            <div className="p-3">
+              <div className="grid grid-cols-3 gap-1 text-center mb-2">
+                <div className="bg-indigo-50 rounded-xl p-2"><div className="text-xl font-bold text-indigo-700">{callTotals[f].night}</div><div className="text-xs text-gray-400">🌙 Night</div></div>
+                <div className="bg-orange-50 rounded-xl p-2"><div className="text-xl font-bold text-orange-600">{callTotals[f].wknd}</div><div className="text-xs text-gray-400">📅 Wknd</div></div>
+                <div className="bg-red-50 rounded-xl p-2"><div className="text-xl font-bold text-red-600">{orStats[f].total}</div><div className="text-xs text-gray-400">⚕️ Cases</div></div>
+              </div>
+              {Object.entries(sett.targets||{}).slice(0,4).map(([proc,tgt])=>{const done=orStats[f].byProc[proc]||0;return<PBar key={proc} val={done} max={tgt} label={proc} right={`${done}/${tgt}`}/>;})}
+            </div>
+          </Card>)}
+        </div>
+      </div>}
+
+      {/* ══ ROTATION (password protected) ══ */}
+      {tab==='rotation'&&(needsLock('rotation')
+        ?<PasswordGate onUnlock={tryUnlock} hasPassword={!!(sett.appPassword||'')}/>
+        :<div className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2"><h2 className="font-bold text-gray-800">Monthly Rotation</h2><div className="flex gap-2"><Btn onClick={()=>{setPrintMi(rMi);setShowPrint(true);}} cls="bg-gray-700 text-white">🖨️ Print</Btn><Btn onClick={()=>exportRotICS('SS')} cls="bg-blue-600 text-white">📤 SS ICS</Btn><Btn onClick={()=>exportRotICS('MN')} cls="bg-orange-600 text-white">📤 MN ICS</Btn></div></div>
+          <div className="flex gap-2 bg-white border rounded-2xl p-2 shadow-sm">{['SS','MN'].map(f=><button key={f} onClick={()=>setRFel(f)} className={`flex-1 py-2 rounded-xl font-bold text-sm ${rFel===f?(f==='SS'?'bg-blue-600 text-white':'bg-orange-600 text-white'):'text-gray-400 hover:bg-gray-50'}`}>{f}</button>)}</div>
+          <div className="flex flex-wrap gap-1.5">{MONTHS.map(({lb},i)=>{const k=`${rFel}-${MONTHS[i].y}-${MONTHS[i].m}`,tpl=mr[k]?.template;return<button key={i} onClick={()=>setRMi(i)} className={`px-2.5 py-1.5 rounded-full text-xs font-semibold border ${rMi===i?'bg-blue-600 text-white':'bg-white text-gray-600'}`}>{lb.split(' ')[0]}{tpl&&tpl!=='none'&&<span className="ml-1 opacity-60">({tpl})</span>}</button>;})}</div>
+          <div className="bg-white border rounded-2xl p-3 shadow-sm flex flex-wrap items-center gap-2">
+            <span className="text-xs text-gray-500">{MONTHS[rMi].lb} · {rFel}:</span>
+            {TMPLS.map(t=><Btn key={t} onClick={()=>applyTpl(rFel,rMi,t)} cls={`${mr[`${rFel}-${MONTHS[rMi].y}-${MONTHS[rMi].m}`]?.template===t?'bg-blue-600 text-white':'bg-gray-100 text-gray-600'}`}>Apply {t}</Btn>)}
+            <Btn onClick={()=>copyPrev(rFel,rMi)} disabled={rMi===0} cls="bg-yellow-100 text-yellow-800">📋 Copy prev</Btn>
+          </div>
+          <Card>
+            <CardH>{MONTHS[rMi].lb} — {rFel} <span className="font-normal text-gray-400 ml-1">· W1–W5 = week occurrence</span></CardH>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead><tr className="bg-gray-50 border-b">{['Time',...WDAYS].map(h=><th key={h} className="p-2 text-gray-500 font-semibold text-center min-w-20">{h}</th>)}</tr></thead>
+                <tbody>
+                  <tr className="border-b bg-amber-50"><td className="p-2 text-xs text-gray-400 text-center font-semibold">07–08<br/>Both</td>{WDAYS.map(d=><td key={d} className="p-2 text-center text-amber-700 font-medium">🏥 Ward Round</td>)}</tr>
+                  <tr className="border-b bg-yellow-50"><td className="p-2 text-xs text-gray-400 text-center font-semibold">08–09<br/>Both</td>
+                    {[0,1,2,3,4].map(di=><td key={di} className="p-1 align-top"><select value={(sett.morningActSched||[])[di]||''} onChange={e=>{const n=[...(sett.morningActSched||['','','','',''])];n[di]=e.target.value;setSf('morningActSched',n);}} className="w-full border border-yellow-300 rounded text-xs px-1 py-0.5 bg-yellow-50 text-yellow-800 focus:outline-none">{(sett.maOpts||[]).map(a=><option key={a} value={a}>{a}</option>)}</select></td>)}
+                  </tr>
+                  {[['am','09:00–12:00'],['pm','13:00–16:00']].map(([slot,time])=>(
+                    <tr key={slot} className="border-b">
+                      <td className="p-2 text-xs text-gray-400 text-center font-semibold align-top pt-2">{time}<br/><span className="inline-block mt-1"><FTag f={rFel}/></span></td>
+                      {[0,1,2,3,4].map(di=>{const k=`${rFel}-${MONTHS[rMi].y}-${MONTHS[rMi].m}`;const row=mr[k]?.[slot]?.[di]||emptyCell();return<td key={di} className="p-1 align-top border-l border-gray-100"><WeekRows wo={row.wo||{}} sups={sett.sups} onChange={wo=>setCellWo(rFel,rMi,slot,di,wo)}/></td>;})}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ══ ON-CALL (password protected) ══ */}
+      {tab==='oncall'&&(needsLock('oncall')
+        ?<PasswordGate onUnlock={tryUnlock} hasPassword={!!(sett.appPassword||'')}/>
+        :<div className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2"><h2 className="font-bold text-gray-800">On-Call & Duty</h2><div className="flex gap-2"><Btn onClick={()=>setOffModal({key:null,ds:'',mode:'new'})} cls="bg-amber-500 text-white">📴 Book Off Day</Btn><Btn onClick={reBalance} cls="bg-indigo-600 text-white">⚖️ Re-Balance</Btn></div></div>
+          {imbalance&&<div className="bg-yellow-50 border border-yellow-300 rounded-xl px-4 py-2 text-xs text-yellow-800">⚠️ Imbalance — SS {callTotals.SS.night}N/{callTotals.SS.wknd}W vs MN {callTotals.MN.night}N/{callTotals.MN.wknd}W</div>}
+          {offModal&&<Card cls="border-amber-400 border-2"><CardH right={<Btn onClick={()=>setOffModal(null)} cls="text-gray-400">✕</Btn>}>{offModal.key&&offDuty[offModal.key]?'📴 View / Remove Off-Duty':'📴 Book Off-Duty Day'}</CardH>
+            <div className="p-4 space-y-3">{offModal.key&&offDuty[offModal.key]?(
+              <div className="space-y-3"><div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-1"><div>Date: <b>{offModal.ds}</b></div><div>Fellow: <b>{offDuty[offModal.key].fellow}</b> — off duty</div><div>Reason: <b>{offDuty[offModal.key].reason||'—'}</b></div><div className="text-gray-500">On-call assigned to: <b>{offDuty[offModal.key].fellow==='SS'?'MN':'SS'}</b></div></div><div className="flex gap-2"><Btn onClick={()=>{removeOff(offModal.key);setOffModal(null);}} cls="bg-red-100 text-red-700 flex-1">🗑 Remove</Btn><Btn onClick={()=>setOffModal(null)} cls="bg-gray-100 text-gray-600 flex-1">Close</Btn></div></div>
+            ):(
+              <div className="space-y-3"><div className="grid grid-cols-2 gap-3"><div className="col-span-2"><label className="text-xs text-gray-500 block mb-0.5">Date</label><Inp type="date" value={offModal.ds||''} onChange={v=>{if(v){const[y,mo,d]=v.split('-').map(Number);setOffModal(p=>({...p,ds:v,key:hk(y,mo-1,d)}));}else setOffModal(p=>({...p,ds:'',key:null}));}} cls="w-full"/></div><div><label className="text-xs text-gray-500 block mb-0.5">Fellow (off)</label><SF value={offFel} onChange={setOffFel} opts={['SS','MN']} cls="w-full"/></div><div><label className="text-xs text-gray-500 block mb-0.5">Reason</label><Inp value={offReason} onChange={setOffReason} placeholder="Conference / Sick…" cls="w-full"/></div></div>
+              {offModal.key&&<div className="bg-blue-50 border border-blue-200 rounded-xl p-2 text-xs text-blue-700">{offFel} = off · {offFel==='SS'?'MN':'SS'} = on-call that day</div>}
+              <div className="flex gap-2"><Btn onClick={()=>{if(offModal.key){bookOff(offModal.key,offFel,offReason);setOffModal(null);}}} disabled={!offModal.key} cls="bg-amber-500 text-white flex-1">✅ Confirm</Btn><Btn onClick={()=>setOffModal(null)} cls="bg-gray-100 text-gray-600 flex-1">Cancel</Btn></div></div>
+            )}</div>
+          </Card>}
+          <div className="grid grid-cols-2 gap-3">{['SS','MN'].map(f=><Card key={f}><div className={`p-3 ${f==='SS'?'bg-blue-50':'bg-orange-50'}`}><div className="flex items-center justify-between mb-2"><FTag f={f}/><Btn onClick={()=>exportCallICS(f)} cls="bg-green-600 text-white py-1">📤 ICS</Btn></div><div className="grid grid-cols-3 gap-1 text-center"><div className="bg-white rounded-lg p-2"><div className="text-xl font-bold text-indigo-700">{callTotals[f].night}</div><div className="text-xs text-gray-400">🌙 Night</div></div><div className="bg-white rounded-lg p-2"><div className="text-xl font-bold text-orange-600">{callTotals[f].wknd}</div><div className="text-xs text-gray-400">📅 Wknd</div></div><div className="bg-white rounded-lg p-2"><div className="text-xl font-bold text-pink-600">{callTotals[f].hol}</div><div className="text-xs text-gray-400">🏖️ Hol</div></div></div></div></Card>)}</div>
+          <div className="bg-white border rounded-xl px-3 py-2 text-xs text-gray-400 flex flex-wrap gap-3 items-center">
+            <span>💡 Tap any day = swap SS↔MN &nbsp;|&nbsp; Tap amber = view off-duty</span>
+            {[['bg-blue-600','SS Night/Wknd'],['bg-orange-500','MN Night/Wknd'],['bg-amber-100 border border-amber-400','Off-Duty'],['bg-pink-50','Holiday']].map(([c,l])=><span key={l} className="flex items-center gap-1"><span className={`w-3 h-3 rounded-sm ${c}`}/>{l}</span>)}
+          </div>
+          <div className="flex items-center justify-between bg-white border rounded-2xl px-4 py-2 shadow-sm">
+            <button onClick={()=>setCMi(m=>Math.max(0,m-1))} disabled={cMi===0} className="w-8 h-8 rounded-lg border disabled:opacity-30 flex items-center justify-center text-lg">‹</button>
+            <span className="font-bold">{MONTHS[cMi].lb}</span>
+            <button onClick={()=>setCMi(m=>Math.min(11,m+1))} disabled={cMi===11} className="w-8 h-8 rounded-lg border disabled:opacity-30 flex items-center justify-center text-lg">›</button>
+          </div>
+          <Card>
+            <div className="grid grid-cols-7 bg-gray-50 border-b">{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=><div key={d} className={`text-center text-xs font-bold py-2 ${d==='Sat'||d==='Sun'?'text-red-400':'text-gray-500'}`}>{d}</div>)}</div>
+            <div className="grid grid-cols-7">
+              {cDays.map((date,i)=>{
+                if(!date)return<div key={'e'+i} className="h-16 border-r border-b border-gray-100 bg-slate-50"/>;
+                const d=date.getDate(),y=date.getFullYear(),m=date.getMonth();
+                const k=hk(y,m,d),c=call[k],od=offDuty[k],dow=date.getDay(),isWk=dow===0||dow===6,hol=isHol(y,m,d),hn=TH_HOL[hk(y,m,d)];
+                const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const dutyBg=c?.fellow==='SS'?SS_COLOR:MN_COLOR;
+                return<div key={k} onClick={()=>{if(od){setOffModal({key:k,ds,mode:'view'});setOffFel(od.fellow);setOffReason(od.reason||'');}else if(c)toggleCall(k);}} className={`h-16 p-1 border-r border-b border-gray-100 flex flex-col select-none cursor-pointer hover:brightness-95 ${hol?'bg-pink-50':isWk?'bg-slate-50':''}`}>
+                  <div className={`text-xs font-bold ${hol?'text-pink-500':isWk?'text-gray-400':'text-gray-700'}`}>{d}</div>
+                  {hol&&<div className="text-xs text-pink-400 truncate">{hn}</div>}
+                  {c&&<div className="mt-auto w-full text-xs font-bold text-white text-center py-0.5 rounded-md" style={{background:dutyBg}}>{c.fellow} {c.type==='hol'?'🏖️':isWk?'📅':'🌙'}</div>}
+                  {od&&<div className="w-full text-center py-0.5 rounded-md bg-amber-100 text-amber-700 font-semibold truncate" style={{fontSize:'9px'}}>📴{od.fellow}{od.reason?` ${od.reason.slice(0,5)}`:''}</div>}
+                </div>;
+              })}
+            </div>
+          </Card>
+          <Card><CardH>Monthly Summary</CardH><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="bg-gray-50 border-b"><th className="text-left p-2 text-gray-500">Month</th><th className="p-2 text-center text-blue-600">SS🌙</th><th className="p-2 text-center text-blue-400">SS📅</th><th className="p-2 text-center text-orange-600">MN🌙</th><th className="p-2 text-center text-orange-400">MN📅</th></tr></thead><tbody>{callMth.map((s,i)=><tr key={i} className={`border-b ${i%2?'bg-slate-50':''}`}><td className="p-2 text-gray-600">{s.lb}</td><td className="p-2 text-center font-bold text-blue-700">{s.SS.night}</td><td className="p-2 text-center font-bold text-blue-400">{s.SS.wknd}</td><td className="p-2 text-center font-bold text-orange-600">{s.MN.night}</td><td className="p-2 text-center font-bold text-orange-400">{s.MN.wknd}</td></tr>)}<tr className="bg-gray-100 font-bold border-t-2"><td className="p-2 text-gray-700">Total</td><td className="p-2 text-center text-blue-700">{callTotals.SS.night}</td><td className="p-2 text-center text-blue-400">{callTotals.SS.wknd}</td><td className="p-2 text-center text-orange-600">{callTotals.MN.night}</td><td className="p-2 text-center text-orange-400">{callTotals.MN.wknd}</td></tr></tbody></table></div></Card>
+        </div>
+      )}
+
+      {/* ══ CASES ══ */}
+      {tab==='cases'&&<div className="space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2"><h2 className="font-bold text-gray-800">Cases — Pre-Op & OR Logbook</h2><Btn onClick={()=>exportORcsv(cFel)} cls="bg-green-600 text-white">📥 CSV {cFel}</Btn></div>
+        <div className="flex gap-2 bg-white border rounded-2xl p-2 shadow-sm">{['SS','MN'].map(f=><button key={f} onClick={()=>{setCFel(f);setSelDay(null);setExpandId(null);}} className={`flex-1 py-2 rounded-xl font-bold text-sm ${cFel===f?(f==='SS'?'bg-blue-600 text-white':'bg-orange-600 text-white'):'text-gray-400 hover:bg-gray-50'}`}>{f} <span className="font-normal text-xs opacity-70">({preop.filter(e=>e.surgeon===cFel&&e.status!=='Done').length}🟡 {orStats[cFel].total}🔴)</span></button>)}</div>
+        <div className="flex gap-2 bg-white border rounded-2xl p-3 shadow-sm items-center"><span className="text-xs text-gray-500 font-medium shrink-0">🔍</span><Inp value={orSearch} onChange={setOrSearch} placeholder="Search HN, procedure, supervisor, diagnosis…" cls="flex-1"/>{orSearch&&<button onClick={()=>setOrSearch('')} className="text-gray-400 hover:text-gray-600">✕</button>}</div>
+        {orSearch&&<Card><CardH>{filteredLog.filter(e=>e.fellow===cFel).length} results for {cFel}</CardH><div className="overflow-x-auto"><table className="w-full text-xs min-w-max"><thead><tr className="bg-gray-50 border-b text-gray-500"><th className="p-2 text-left">Date</th><th className="p-2 text-left">HN</th><th className="p-2 text-left">Procedure</th><th className="p-2 text-left">Diagnosis</th><th className="p-2 text-left">Lat</th><th className="p-2 text-left">Supervisor</th></tr></thead><tbody>{filteredLog.filter(e=>e.fellow===cFel).map((r,i)=><tr key={r.id} className={`border-b ${i%2?'bg-slate-50':''}`}><td className="p-2">{r.date}</td><td className="p-2">{r.HN||'—'}</td><td className="p-2 font-semibold text-red-700">{r.procedure||'—'}</td><td className="p-2 truncate max-w-32">{r.diagnosis||'—'}</td><td className="p-2">{r.laterality||'—'}</td><td className="p-2">{r.supervisor||'—'}</td></tr>)}</tbody></table></div></Card>}
+        <div className="bg-white border rounded-xl px-3 py-2 flex gap-4 text-xs items-center">{[['bg-amber-100 border-amber-400','Pre-Op'],['bg-green-100 border-green-400','Ready'],['bg-red-100 border-red-400','OR Done']].map(([c,l])=><span key={l} className="flex items-center gap-1"><span className={`w-3 h-3 rounded border inline-block ${c}`}/><span className="text-gray-500">{l}</span></span>)}</div>
+        <div className="flex items-center justify-between bg-white border rounded-2xl px-4 py-2 shadow-sm">
+          <button onClick={()=>{setCMi2(m=>Math.max(0,m-1));setSelDay(null);}} disabled={cMi2===0} className="w-8 h-8 rounded-lg border disabled:opacity-30 flex items-center justify-center text-lg">‹</button>
+          <span className="font-bold">{MONTHS[cMi2].lb}</span>
+          <button onClick={()=>{setCMi2(m=>Math.min(11,m+1));setSelDay(null);}} disabled={cMi2===11} className="w-8 h-8 rounded-lg border disabled:opacity-30 flex items-center justify-center text-lg">›</button>
+        </div>
+        <Card>
+          <div className="grid grid-cols-7 bg-gray-50 border-b">{['Mo','Tu','We','Th','Fr','Sa','Su'].map(d=><div key={d} className={`text-center text-xs font-bold py-2 ${d==='Sa'||d==='Su'?'text-red-400':'text-gray-500'}`}>{d}</div>)}</div>
+          <div className="grid grid-cols-7">
+            {csDays.map((date,i)=>{
+              if(!date)return<div key={'e'+i} className="h-16 border-r border-b border-gray-100 bg-slate-50"/>;
+              const ds=dStr(date),dow=date.getDay(),isWk=dow===0||dow===6,hol=isHol(date.getFullYear(),date.getMonth(),date.getDate());
+              const{pre,or}=casesOnDay(ds,cFel),isSel=selDay===ds,hasReady=pre.some(p=>p.readyForSurgery);
+              return<div key={ds} onClick={()=>{if(!isWk&&!hol){setSelDay(isSel?null:ds);setExpandId(null);}}} className={`h-16 p-1 border-r border-b border-gray-100 flex flex-col ${hol?'bg-pink-50':isWk?'bg-slate-50':'cursor-pointer hover:bg-blue-50/30'} ${isSel?'ring-2 ring-inset ring-blue-400':''}`}>
+                <div className={`text-xs font-bold ${hol?'text-pink-500':isWk?'text-gray-200':'text-gray-700'}`}>{date.getDate()}</div>
+                {pre.length>0&&<div className={`text-xs rounded px-1 truncate mt-0.5 font-semibold ${hasReady?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}`}>🟡{pre.length}</div>}
+                {or.length>0&&<div className="text-xs rounded px-1 truncate bg-red-100 text-red-700 font-semibold">🔴{or.length}</div>}
+                {!isWk&&!hol&&pre.length===0&&or.length===0&&<div className="mt-auto text-gray-100 text-center text-xs">＋</div>}
+              </div>;
+            })}
+          </div>
+        </Card>
+        {selDay&&(()=>{
+          const{pre:preCases,or:orCases}=casesOnDay(selDay,cFel);
+          return<Card cls="border-blue-300 border-2">
+            <CardH right={<div className="flex gap-1"><Btn onClick={()=>{setAddPre({date:selDay,fellow:cFel});setNewPre({date:selDay,HN:'',name:'',procedure:'',laterality:'OD',surgeon:cFel,supervisor:'',status:'Scheduled',readyForSurgery:false,notes:'',diagnosis:''}); }} cls="bg-amber-500 text-white">＋ Pre</Btn><Btn onClick={()=>{setAddOR({date:selDay,fellow:cFel});setNewOR({HN:'',diagnosis:DIAGS[0],procedure:sett.procs?.[0]||'',laterality:'OD',supervisor:'',notes:''}); }} cls="bg-red-600 text-white">＋ OR</Btn><Btn onClick={()=>setSelDay(null)} cls="text-gray-400">✕</Btn></div>}>{new Date(selDay).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</CardH>
+            <div className="p-3 border-b">
+              <div className="font-semibold text-amber-700 text-xs mb-2">🟡 Pre-Op ({preCases.length})</div>
+              {preCases.length===0&&<div className="text-xs text-gray-400">None</div>}
+              {preCases.map(po=><div key={po.id} className={`border rounded-2xl overflow-hidden mb-2 ${po.readyForSurgery?'border-green-400':'border-amber-300'}`}>
+                <div className={`flex items-center justify-between px-3 py-2 cursor-pointer ${po.readyForSurgery?'bg-green-50':'bg-amber-50'}`} onClick={()=>setExpandId(expandId===po.id?null:po.id)}>
+                  <div><span className="font-bold text-sm text-gray-800">{po.procedure||'—'}</span><span className="ml-2 text-xs text-gray-400">{po.laterality}</span>{po.HN&&<span className="ml-2 text-xs text-gray-400">HN:{po.HN}</span>}{po.readyForSurgery&&<span className="ml-2 text-xs text-green-700 font-semibold">✅</span>}</div>
+                  <div className="flex items-center gap-2"><Btn onClick={e=>{e.stopPropagation();updPreF(po.id,'readyForSurgery',!po.readyForSurgery);}} cls={`${po.readyForSurgery?'bg-green-600 text-white':'bg-gray-100 text-gray-600'} py-0.5`}>✅</Btn>{po.readyForSurgery&&<Btn onClick={e=>{e.stopPropagation();moveToLog(po);}} cls="bg-red-600 text-white py-0.5">→ OR</Btn>}<span className="text-gray-400">{expandId===po.id?'▲':'▼'}</span></div>
+                </div>
+                {expandId===po.id&&<div className="grid grid-cols-2 gap-2 p-3 bg-white">
+                  <div><label className="text-xs text-gray-400 block mb-0.5">HN</label><Inp value={po.HN} onChange={v=>updPreF(po.id,'HN',v)} cls="w-full"/></div>
+                  <div><label className="text-xs text-gray-400 block mb-0.5">Laterality</label><SF value={po.laterality||'OD'} onChange={v=>updPreF(po.id,'laterality',v)} opts={['OD','OS','OU']} cls="w-full"/></div>
+                  <div className="col-span-2"><label className="text-xs text-gray-400 block mb-0.5">Operation</label><SF value={po.procedure||''} onChange={v=>updPreF(po.id,'procedure',v)} opts={['',...(sett.procs||[])]} cls="w-full"/></div>
+                  <div><label className="text-xs text-gray-400 block mb-0.5">Status</label><SF value={po.status||'Scheduled'} onChange={v=>updPreF(po.id,'status',v)} opts={PRE_ST} cls="w-full"/></div>
+                  <div><label className="text-xs text-gray-400 block mb-0.5">Supervisor</label><SF value={po.supervisor||''} onChange={v=>updPreF(po.id,'supervisor',v)} opts={['',...(sett.sups||[])]} cls="w-full"/></div>
+                  <div className="col-span-2"><label className="text-xs text-gray-400 block mb-0.5">Notes</label><textarea value={po.notes||''} onChange={e=>updPreF(po.id,'notes',e.target.value)} rows={2} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none resize-none bg-white"/></div>
+                  <Btn onClick={()=>setExpandId(null)} cls="bg-blue-600 text-white">✅ Done</Btn><Btn onClick={()=>{delPre(po.id);setExpandId(null);}} cls="bg-red-100 text-red-600">🗑</Btn>
+                </div>}
+              </div>)}
+            </div>
+            <div className="p-3">
+              <div className="font-semibold text-red-700 text-xs mb-2">🔴 OR Done ({orCases.length})</div>
+              {orCases.length===0&&<div className="text-xs text-gray-400">None</div>}
+              {orCases.map(c=><div key={c.id} className="border border-red-200 rounded-2xl overflow-hidden mb-2">
+                <div className="flex items-center justify-between px-3 py-2 bg-red-50 cursor-pointer" onClick={()=>setExpandId(expandId===c.id?null:c.id)}><div><span className="font-bold text-red-700">{c.procedure}</span><span className="ml-2 text-xs text-gray-400">{c.laterality}</span>{c.HN&&<span className="ml-2 text-xs text-gray-400">HN:{c.HN}</span>}</div><span className="text-gray-400">{expandId===c.id?'▲':'▼'}</span></div>
+                {expandId===c.id&&<div><CaseFields c={c} onChange={(f,v)=>updORf(c.id,f,v)} procs={sett.procs} sups={sett.sups}/><div className="px-3 pb-3 flex gap-2"><Btn onClick={()=>setExpandId(null)} cls="bg-blue-600 text-white">✅ Done</Btn><Btn onClick={()=>{delOR(c.id);setExpandId(null);}} cls="bg-red-100 text-red-600">🗑</Btn></div></div>}
+              </div>)}
+            </div>
+          </Card>;
+        })()}
+        {addPre&&<Card cls="border-amber-400 border-2"><CardH right={<Btn onClick={()=>setAddPre(null)} cls="text-gray-400">✕</Btn>}>🟡 New Pre-Op — {addPre.date}</CardH><div className="p-4 grid grid-cols-2 gap-3"><div><label className="text-xs text-gray-500 block mb-0.5">HN</label><Inp value={newPre.HN} onChange={v=>setNewPre(p=>({...p,HN:v}))} placeholder="HN" cls="w-full"/></div><div><label className="text-xs text-gray-500 block mb-0.5">Name</label><Inp value={newPre.name} onChange={v=>setNewPre(p=>({...p,name:v}))} placeholder="Patient name" cls="w-full"/></div><div className="col-span-2"><label className="text-xs text-gray-500 block mb-0.5">Operation</label><SF value={newPre.procedure} onChange={v=>setNewPre(p=>({...p,procedure:v}))} opts={['',...(sett.procs||[])]} cls="w-full"/></div><div><label className="text-xs text-gray-500 block mb-0.5">Laterality</label><SF value={newPre.laterality} onChange={v=>setNewPre(p=>({...p,laterality:v}))} opts={['OD','OS','OU']} cls="w-full"/></div><div><label className="text-xs text-gray-500 block mb-0.5">Supervisor</label><SF value={newPre.supervisor} onChange={v=>setNewPre(p=>({...p,supervisor:v}))} opts={['',...(sett.sups||[])]} cls="w-full"/></div><div><label className="text-xs text-gray-500 block mb-0.5">Status</label><SF value={newPre.status} onChange={v=>setNewPre(p=>({...p,status:v}))} opts={PRE_ST} cls="w-full"/></div><div className="flex items-center gap-2 pt-3"><input type="checkbox" checked={newPre.readyForSurgery} onChange={e=>setNewPre(p=>({...p,readyForSurgery:e.target.checked}))}/><label className="text-xs text-gray-600">✅ Ready for Surgery</label></div><div className="col-span-2"><label className="text-xs text-gray-500 block mb-0.5">Notes</label><textarea value={newPre.notes} onChange={e=>setNewPre(p=>({...p,notes:e.target.value}))} rows={2} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none resize-none bg-white"/></div><Btn onClick={savePre} cls="bg-amber-500 text-white">✅ Save Pre-Op</Btn><Btn onClick={()=>setAddPre(null)} cls="bg-gray-100 text-gray-600">Cancel</Btn></div></Card>}
+        {addOR&&<Card cls="border-red-400 border-2"><CardH right={<Btn onClick={()=>setAddOR(null)} cls="text-gray-400">✕</Btn>}>🔴 New OR — {addOR.date}</CardH><CaseFields c={newOR} onChange={(f,v)=>setNewOR(p=>({...p,[f]:v}))} procs={sett.procs} sups={sett.sups}/><div className="px-3 pb-3 flex gap-2"><Btn onClick={saveOR} cls="bg-red-600 text-white">✅ Save</Btn><Btn onClick={()=>setAddOR(null)} cls="bg-gray-100 text-gray-600">Cancel</Btn></div></Card>}
+        {orStats[cFel].total>0&&<Card><CardH>⚕️ {cFel} — {orStats[cFel].total} cases <span className="text-gray-400 font-normal ml-1">(tap to drill down)</span></CardH><div className="p-3 grid grid-cols-2 gap-1.5">{Object.entries(orStats[cFel].byProc).sort((a,b)=>b[1]-a[1]).map(([proc,n])=>{const t=(sett.targets||{})[proc]||0;return<div key={proc} className="bg-red-50 border border-red-100 rounded-xl px-3 py-2 cursor-pointer hover:bg-red-100" onClick={()=>setProcModal({proc,fellow:cFel})}><div className="flex justify-between text-xs mb-0.5"><span className="text-red-700 font-semibold truncate mr-1 underline">{proc}</span><span className="font-bold text-red-700">{n}{t?`/${t}`:''}</span></div>{t>0&&<div className="h-1 bg-red-100 rounded-full"><div className={`h-full rounded-full ${n/t>=1?'bg-green-400':n/t>=0.5?'bg-yellow-400':'bg-red-300'}`} style={{width:`${Math.min(100,n/t*100)}%`}}/></div>}</div>;})}
+        </div></Card>}
+      </div>}
+
+      {/* ══ SETTINGS (password protected) ══ */}
+      {tab==='settings'&&(needsLock('settings')
+        ?<PasswordGate onUnlock={tryUnlock} hasPassword={!!(sett.appPassword||'')}/>
+        :<div className="space-y-3">
+          <h2 className="font-bold text-gray-800">⚙️ Settings</h2>
+          {/* Password */}
+          <Card>
+            <CardH>🔒 App Password (Rotation · On-Call · Settings)</CardH>
+            <div className="p-4 space-y-3">
+              {(sett.appPassword||'')&&<div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800 flex items-center gap-2"><span>🔒 Password is set. These tabs are protected.</span><Btn onClick={()=>{if(window.confirm('Remove password? All tabs will be open.'))setSf('appPassword','');}} cls="bg-red-100 text-red-700 ml-auto">Remove</Btn></div>}
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs text-gray-500 block mb-0.5">{(sett.appPassword||'')?'New password':'Set password'}</label><input type="password" value={newPw} onChange={e=>setNewPw(e.target.value)} placeholder="New password…" className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none bg-white"/></div>
+                <div><label className="text-xs text-gray-500 block mb-0.5">Confirm password</label><input type="password" value={pwConfirm} onChange={e=>setPwConfirm(e.target.value)} placeholder="Confirm…" className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none bg-white"/></div>
+              </div>
+              <Btn onClick={()=>{if(!newPw){alert('Enter a password');return;}if(newPw!==pwConfirm){alert('Passwords do not match');return;}setSf('appPassword',newPw);setNewPw('');setPwConfirm('');alert('✅ Password saved!');}} disabled={!newPw||newPw!==pwConfirm} cls="bg-blue-600 text-white hover:bg-blue-700">{(sett.appPassword||'')?'Update Password':'Set Password'}</Btn>
+              <div className="text-xs text-gray-400">Password locks Rotation, On-Call, and Settings tabs. Summary and Cases remain open.</div>
+            </div>
+          </Card>
+          <Card><CardH>🔥 Firebase</CardH><div className="p-3 space-y-2"><div className="flex items-center gap-2 text-xs"><span className="w-3 h-3 bg-green-400 rounded-full"/><span className="text-gray-600">Project: <b className="text-orange-600">glaucoma-fellowship</b> · Collection: <b className="text-orange-600">{COL}</b></span></div><a href="https://console.firebase.google.com/project/glaucoma-fellowship/firestore/rules" target="_blank" className="text-xs text-blue-600 underline">→ Open Firestore Rules</a></div></Card>
+          <Card><CardH>📲 LINE Messaging API</CardH><div className="p-4 space-y-3"><div><label className="text-xs text-gray-500 block mb-0.5">Worker URL</label><Inp value={sett.lineWorkerUrl||''} onChange={v=>setSf('lineWorkerUrl',v)} placeholder="https://fellowship-line.xxx.workers.dev" cls="w-full"/></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs text-gray-500 block mb-0.5">SS User ID</label><Inp value={sett.ssLineId||''} onChange={v=>setSf('ssLineId',v)} placeholder="Uxxxxxxxxxxxxxxxx" cls="w-full"/></div><div><label className="text-xs text-gray-500 block mb-0.5">MN User ID</label><Inp value={sett.mnLineId||''} onChange={v=>setSf('mnLineId',v)} placeholder="Uxxxxxxxxxxxxxxxx" cls="w-full"/></div></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs text-gray-500 block mb-0.5">🌅 Morning notify</label><Inp type="time" value={sett.morningNotifyTime||'06:00'} onChange={v=>setSf('morningNotifyTime',v)} cls="w-full"/></div><div><label className="text-xs text-gray-500 block mb-0.5">🌙 Evening notify</label><Inp type="time" value={sett.eveningNotifyTime||'20:00'} onChange={v=>setSf('eveningNotifyTime',v)} cls="w-full"/></div></div></div></Card>
+          <Card><CardH>🔄 Templates A/B/C</CardH><div className="p-3 space-y-3"><div className="flex flex-wrap gap-2">{TMPLS.map(t=><button key={t} onClick={()=>setTplTab(t)} className={`px-4 py-1.5 rounded-full text-xs font-bold border ${tplTab===t?'bg-blue-600 text-white':'bg-white text-gray-600'}`}>Template {t}</button>)}</div><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="bg-gray-50 border-b">{['Time',...WDAYS].map(h=><th key={h} className="p-2 text-gray-500 font-semibold text-center min-w-20">{h}</th>)}</tr></thead><tbody>{[['am','09–12'],['pm','13–16']].map(([slot,time])=><tr key={slot} className="border-b"><td className="p-2 text-xs text-gray-400 text-center font-semibold align-top pt-2">{time}</td>{[0,1,2,3,4].map(di=>{const row=rotPats[tplTab]?.[slot]?.[di]||emptyCell();return<td key={di} className="p-1 align-top border-l border-gray-100"><WeekRows wo={row.wo||{}} sups={sett.sups} onChange={wo=>setTplCellWo(tplTab,slot,di,wo)}/></td>;})}</tr>)}</tbody></table></div></div></Card>
+          <Card><CardH>🎯 Competency Targets</CardH><div className="p-4 space-y-2">{Object.entries(sett.targets||{}).map(([proc,t])=><div key={proc} className="flex items-center gap-3"><span className="text-xs text-gray-600 flex-1 truncate">{proc}</span><input type="number" min="1" max="200" value={t} onChange={e=>setSf('targets',{...sett.targets,[proc]:+e.target.value})} className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs text-center focus:outline-none bg-white"/><span className="text-xs text-gray-400">cases</span><button onClick={()=>{const t2={...sett.targets};delete t2[proc];setSf('targets',t2);}} className="text-gray-300 hover:text-red-500">✕</button></div>)}<div className="flex gap-2 mt-2 border-t pt-2"><SF value={newTgt.proc} onChange={v=>setNewTgt(p=>({...p,proc:v}))} opts={['',...(sett.procs||[]).filter(p=>!(sett.targets||{})[p])]} cls="flex-1"/><input type="number" value={newTgt.n} onChange={e=>setNewTgt(p=>({...p,n:+e.target.value}))} className="w-14 border border-gray-200 rounded-lg px-2 py-1 text-xs text-center focus:outline-none bg-white" min="1"/><Btn onClick={()=>{if(newTgt.proc){setSf('targets',{...sett.targets,[newTgt.proc]:newTgt.n});setNewTgt({proc:'',n:10});}}} cls="bg-blue-600 text-white">Add</Btn></div></div></Card>
+          <Card><CardH>⚕️ Procedures</CardH><div className="p-4"><div className="flex flex-wrap gap-2 mb-3">{(sett.procs||[]).map(p=><span key={p} className="flex items-center gap-1 bg-red-50 border border-red-100 text-red-700 text-xs px-2 py-1 rounded-full">{p}<button onClick={()=>setSf('procs',sett.procs.filter(x=>x!==p))} className="text-red-300 hover:text-red-600 ml-0.5">✕</button></span>)}</div><div className="flex gap-2"><Inp value={newProc} onChange={setNewProc} placeholder="Add…" cls="flex-1"/><Btn onClick={()=>{if(newProc.trim()&&!(sett.procs||[]).includes(newProc.trim())){setSf('procs',[...(sett.procs||[]),newProc.trim()]);setNewProc('');}}} cls="bg-red-600 text-white">Add</Btn></div></div></Card>
+          <Card><CardH>📚 Morning Activities</CardH><div className="p-4"><div className="flex flex-wrap gap-2 mb-3">{(sett.maOpts||[]).map(a=><span key={a} className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 text-yellow-800 text-xs px-2 py-1 rounded-full">{a}<button onClick={()=>setSf('maOpts',sett.maOpts.filter(x=>x!==a))} className="text-yellow-400 hover:text-red-500 ml-0.5">✕</button></span>)}</div><div className="flex gap-2"><Inp value={newMA} onChange={setNewMA} placeholder="Add…" cls="flex-1"/><Btn onClick={()=>{if(newMA.trim()&&!(sett.maOpts||[]).includes(newMA.trim())){setSf('maOpts',[...(sett.maOpts||[]),newMA.trim()]);setNewMA('');}}} cls="bg-yellow-500 text-white">Add</Btn></div></div></Card>
+          <Card><CardH>👩‍⚕️ Supervisors</CardH><div className="p-4"><div className="flex flex-wrap gap-2 mb-3">{(sett.sups||[]).map(s=><span key={s} className="flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-700 text-xs px-2 py-1 rounded-full">{s}<button onClick={()=>setSf('sups',sett.sups.filter(x=>x!==s))} className="text-blue-300 hover:text-red-500 ml-0.5">✕</button></span>)}</div><div className="flex gap-2"><Inp value={newSup} onChange={setNewSup} placeholder="Add…" cls="flex-1"/><Btn onClick={()=>{if(newSup.trim()&&!(sett.sups||[]).includes(newSup.trim())){setSf('sups',[...(sett.sups||[]),newSup.trim()]);setNewSup('');}}} cls="bg-blue-600 text-white">Add</Btn></div></div></Card>
+          <Card><CardH>💾 Backup & Reset</CardH><div className="p-4 flex flex-wrap gap-2"><Btn onClick={exportJSON} cls="bg-blue-600 text-white">📤 Export JSON</Btn><Btn onClick={importJSON} cls="bg-teal-600 text-white">📥 Import JSON</Btn><Btn onClick={resetAll} cls="bg-red-100 text-red-700">🔄 Reset Data</Btn></div><div className="px-4 pb-3 text-xs text-gray-400">Reset clears rotation, on-call, cases & pre-op. Settings kept.</div></Card>
+        </div>
+      )}
+    </div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

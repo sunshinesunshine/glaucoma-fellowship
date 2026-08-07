@@ -1,0 +1,88 @@
+# 🚀 Glaucoma Fellowship App — Refined Deployment Guide (v5)
+
+This guide documents how to deploy your app and backend components using the pre-configured files in this workspace.
+
+---
+
+## 💰 Expected Cost: $0/month (All components run on free tiers)
+
+---
+
+## PART 1 — Deploy Frontend to Firebase Hosting `~2 min`
+
+Your project contains `firebase.json` pre-configured to deploy from the `web_deploy/` directory.
+
+1. Open your terminal in the root folder `/Users/CO/Anti`.
+2. Deploy the database rules:
+   ```bash
+   npx firebase deploy --only firestore:rules
+   ```
+3. Deploy the web app:
+   ```bash
+   npx firebase deploy --only hosting
+   ```
+4. Copy the Hosting URL provided in the terminal output (e.g. `https://glaucoma-fellowship.web.app`).
+
+✅ Your web app is now fully online, secure, and has PWA (homescreen app) assets linked!
+
+---
+
+## PART 2 — Configure and Deploy Cloudflare Worker `~3 min`
+
+We created a `wrangler.toml` configuration file in the `glaucoma` directory. This automates the environment variables and cron schedules.
+
+1. Navigate to the glaucoma folder in terminal:
+   ```bash
+   cd glaucoma
+   ```
+2. Log in to your Cloudflare account (sign up free at cloudflare.com if you haven't):
+   ```bash
+   npx wrangler login
+   ```
+3. Store your LINE Messaging API Token securely:
+   ```bash
+   npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
+   ```
+   *(Paste your long Channel Access Token from your LINE Developer Console when prompted).*
+4. Deploy the worker:
+   ```bash
+   npx wrangler deploy
+   ```
+5. Note the deployed Worker URL (e.g. `https://fellowship-line.YOUR-NAME.workers.dev`).
+
+---
+
+## PART 3 — Configure LINE Official Account (OA) `~5 min`
+
+1. Go to **[developers.line.biz](https://developers.line.biz)** and create a provider/channel (Messaging API).
+2. Get the Channel Access Token and upload it via Wrangler (see Part 2, Step 3).
+3. In the Messaging API tab on LINE Developers:
+   - **Webhook URL**: Paste your Cloudflare Worker URL with `/webhook` at the end:
+     `https://fellowship-line.YOUR-NAME.workers.dev/webhook`
+   - Click **Verify** (should say Success).
+   - Turn **ON** "Use webhook".
+4. Disable auto-replies:
+   - Go to your LINE Official Account Manager &rarr; Response settings.
+   - Set **Detailed settings**: Webhooks = Enabled, Auto-reply messages = Disabled.
+5. Add the bot as a friend in LINE by scanning its QR code.
+
+---
+
+## PART 4 — Configure App Settings `~2 min`
+
+Open your live web app URL in your browser:
+1. Go to the **⚙️ Settings** tab.
+2. Enter the **Worker URL**: `https://fellowship-line.YOUR-NAME.workers.dev` (with no trailing slash).
+3. Open LINE on your phone and send any message (e.g., "Hello") to your bot.
+4. The bot will automatically reply with your unique **LINE User ID**: `Uxxxxxxxxxxxxxx`.
+5. Copy this ID and paste it into the app settings under **SS User ID** or **MN User ID** (depending on the fellow).
+6. Click **Save** in Settings.
+
+---
+
+## PART 5 — Adding to Mobile Home Screen
+
+- **iOS (Safari)**: Tap the **Share** button &rarr; Select **Add to Home Screen**.
+- **Android (Chrome)**: Tap the **three dots (menu)** &rarr; Select **Add to Home screen**.
+
+The app will install as a standalone app with the custom medical icon, working offline for schedule viewing!
