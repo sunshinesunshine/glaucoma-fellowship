@@ -2,7 +2,19 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
-## 🚀 [v6.1.2] - 2026-08-15 — *Data Recovery & Device Storage Recovery*
+## 🛡️ [v6.2.0] - 2026-08-15 — *4-Layer Backup & Recovery System*
+
+### 🛡️ Backup Engine (Prevents Future Data Loss)
+- **Layer 1 — Versioned LocalStorage Snapshots**: Auto-saves a timestamped snapshot of all case data to `localStorage` on every data change (debounced 2s). Keeps 14 rolling snapshots per device.
+- **Layer 2 — Daily Firestore Cloud Snapshots**: Writes a full backup to `gf_v6_backups/{YYYY-MM-DD}` collection once per day (forced on every app open). 14 days of cloud history.
+- **Layer 3 — App-open Forced Backup**: Every time the app loads and syncs successfully, it immediately writes a local + cloud snapshot — so even just opening the app protects your data.
+- **Backup & Recovery Center** (Settings tab): Full UI showing all local + cloud snapshots with one-tap **Merge** or **Overwrite** restore.
+- **🛡️ Backup Now** button for on-demand snapshots.
+- **Non-destructive merge**: `restoreFromSnapshot()` uses `mergeEntries()` — restoring never deletes existing cases.
+
+---
+
+## 🔧 [v6.1.2] - 2026-08-15 — *Device Storage Recovery*
 
 ### 📲 Non-Destructive Sync & Device Recovery Engine
 - **Device Storage Recovery Button**: Added `📲 Recover Local Device Storage` button in Settings to automatically pull and merge any unsynced cases logged locally on a phone or laptop.

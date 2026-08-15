@@ -510,7 +510,7 @@
         <div>
           <div class="flex items-center gap-1.5">
             <h1 class="font-outfit font-bold text-sm tracking-wide text-slate-100">Glaucoma Fellowship</h1>
-            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.1.2</span>
+            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.2.0</span>
           </div>
           <p class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">SS & MN &middot; 2026–2027</p>
         </div>
@@ -993,8 +993,14 @@
 
     // ── DATABASE STATE MANAGEMENT ─────────────────────────
     const COL = 'gf_v6';
+    const COL_BACKUPS = 'gf_v6_backups';       // Cloud backup collection
+    const SNAP_PREFIX = 'gf_snap_';             // LocalStorage snapshot prefix
+    const MAX_LOCAL_SNAPS = 14;                 // Keep 14 local snapshots
     const dbKey = id => `gf_db_${COL}_${id}`;
-    
+    const snapKey = ts => `${SNAP_PREFIX}${ts}`;
+    let lastCloudBackupDate = null;             // Throttle: 1 cloud backup per day
+
+
     let state = {
       sett: { ...DEF_SETT },
       rotPats: { A: emptyTpl(), B: emptyTpl(), C: emptyTpl() },
@@ -1107,6 +1113,119 @@
       return { merged: Array.from(map.values()), addedLocalCount };
     }
 
+    // ── BACKUP ENGINE ──────────────────────────────────────────────────────
+    // Layer 1: Versioned LocalStorage Snapshots (14 daily, device-local)
+    function writeVersionedBackup() {
+      try {
+        const now = new Date();
+        const ts = now.toISOString().slice(0, 16).replace('T', '_').replace(':', '');  // "2026-08-15_1500"
+        const snap = {
+          timestamp: now.toISOString(),
+          version: 'v6',
+          orLog:    state.orLog    || [],
+          preop:    state.preop    || [],
+          academic: state.academicLog || [],
+          study:    state.study    || []
+        };
+        localStorage.setItem(snapKey(ts), JSON.stringify(snap));
+
+        // Prune: keep only the most recent MAX_LOCAL_SNAPS
+        const allSnapKeys = Object.keys(localStorage)
+          .filter(k => k.startsWith(SNAP_PREFIX))
+          .sort();
+        allSnapKeys.slice(0, Math.max(0, allSnapKeys.length - MAX_LOCAL_SNAPS))
+          .forEach(k => localStorage.removeItem(k));
+      } catch(e) {
+        console.warn('[Backup] Local snapshot write failed:', e);
+      }
+    }
+
+    // Layer 2: Daily Firestore Cloud Backup to gf_v6_backups/{YYYY-MM-DD}
+    async function writeCloudBackup(force = false) {
+      if (!isOnlineDB || !db) return;
+      const today = new Date().toISOString().slice(0, 10);
+      if (!force && lastCloudBackupDate === today) return; // Already backed up today
+      try {
+        await db.collection(COL_BACKUPS).doc(today).set({
+          timestamp: new Date().toISOString(),
+          version:   'v6',
+          orLog:     state.orLog    || [],
+          preop:     state.preop    || [],
+          academic:  state.academicLog || [],
+          study:     state.study    || []
+        });
+        lastCloudBackupDate = today;
+        console.log('[Backup] Cloud snapshot written for', today);
+      } catch(e) {
+        console.warn('[Backup] Cloud snapshot write failed:', e);
+      }
+    }
+
+    // List all local snapshots (newest first)
+    function listLocalSnapshots() {
+      return Object.keys(localStorage)
+        .filter(k => k.startsWith(SNAP_PREFIX))
+        .sort()
+        .reverse()
+        .map(k => {
+          try {
+            const snap = JSON.parse(localStorage.getItem(k));
+            return {
+              key: k,
+              source: 'local',
+              timestamp: snap.timestamp,
+              orLogCount: (snap.orLog || []).length,
+              preopCount: (snap.preop || []).length,
+              snap
+            };
+          } catch(e) { return null; }
+        })
+        .filter(Boolean);
+    }
+
+    // List cloud snapshots from Firestore
+    async function listCloudSnapshots() {
+      if (!isOnlineDB || !db) return [];
+      try {
+        const snap = await db.collection(COL_BACKUPS)
+          .orderBy(firebase.firestore.FieldPath.documentId(), 'desc')
+          .limit(14)
+          .get();
+        return snap.docs.map(doc => ({
+          key: doc.id,
+          source: 'cloud',
+          timestamp: doc.data().timestamp || doc.id,
+          orLogCount: (doc.data().orLog || []).length,
+          preopCount: (doc.data().preop || []).length,
+          snap: doc.data()
+        }));
+      } catch(e) {
+        console.warn('[Backup] Cloud list failed:', e);
+        return [];
+      }
+    }
+
+    // Restore from a snapshot (merge into current state)
+    function restoreFromSnapshot(snap, mode = 'merge') {
+      if (!snap) return;
+      if (mode === 'merge') {
+        const { merged: mergedLog } = mergeEntries(snap.orLog || [], state.orLog);
+        const { merged: mergedPreop } = mergeEntries(snap.preop || [], state.preop);
+        const { merged: mergedAcademic } = mergeEntries(snap.academic || [], state.academicLog);
+        state.orLog = mergedLog;
+        state.preop = mergedPreop;
+        state.academicLog = mergedAcademic;
+      } else {
+        // Full overwrite (only if user explicitly chose it)
+        state.orLog = snap.orLog || [];
+        state.preop = snap.preop || [];
+        state.academicLog = snap.academic || [];
+      }
+      saveState();
+    }
+
+    // ── END BACKUP ENGINE ───────────────────────────────────────────────────
+
     function initOnlineSync(callback) {
       // 1. Load local storage cache FIRST so state is populated before any async work
       loadState();
@@ -1214,6 +1333,9 @@
                 localStorage.setItem(dbKey('preop'), JSON.stringify({ entries: state.preop }));
                 localStorage.setItem(dbKey('study'), JSON.stringify({ cards: state.study || [] }));
               } catch(e) {}
+              // 🛡️ BACKUP: Take immediate snapshot after first successful sync
+              writeVersionedBackup();
+              writeCloudBackup(true); // force = true: always backup on first load
             }
             // Always re-render to show latest merged data
             renderActiveTab();
@@ -1255,6 +1377,8 @@
       });
     }
 
+    // Debounce timer for backup (avoid writing snapshot on every keystroke)
+    let _backupDebounceTimer = null;
     function saveState() {
       // Local Storage Cache
       try {
@@ -1277,6 +1401,16 @@
         writeDocToFirestore('preop');
         writeDocToFirestore('study');
       }
+
+      // ── BACKUP LAYERS ─────────────────────────────────────
+      // Layer 1: Write versioned local snapshot (debounced 2s to avoid spam)
+      clearTimeout(_backupDebounceTimer);
+      _backupDebounceTimer = setTimeout(() => {
+        writeVersionedBackup();
+        // Layer 2: Write cloud backup (once per day, non-blocking)
+        writeCloudBackup();
+      }, 2000);
+      // ── END BACKUP ────────────────────────────────────────
       
       updateNavLockBadges();
     }
@@ -4218,26 +4352,51 @@
             </div>
           </div>
 
-          <!-- Administrative functions -->
+          <!-- 🛡️ BACKUP & RECOVERY CENTER -->
           <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
-            <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-2">💾 Database Backup, Recovery &amp; Reset</h3>
-            <div class="flex flex-wrap gap-2.5">
-              <button onclick="recoverLocalDeviceData()" class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-lg">📲 Recover Local Device Storage</button>
-              <button onclick="exportMultiSheetExcel()" class="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition-all">📊 Export Excel/CSV</button>
-              <button onclick="exportJSONState()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all">📤 Export JSON Backup</button>
-              <label class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs transition-all cursor-pointer">
-                📥 Import / Merge JSON
+            <div class="flex items-center justify-between">
+              <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider">🛡️ Backup & Recovery Center</h3>
+              <button onclick="refreshBackupPanel()" class="text-[10px] text-slate-400 hover:text-slate-200 transition-colors px-2 py-1 rounded-lg border border-white/5 hover:border-white/10">↻ Refresh</button>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="flex flex-wrap gap-2">
+              <button onclick="triggerManualBackup()" class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-lg">🛡️ Backup Now</button>
+              <button onclick="recoverLocalDeviceData()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all">📲 Recover This Device</button>
+              <button onclick="exportJSONState()" class="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition-all">📤 Export JSON</button>
+              <label class="px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs transition-all cursor-pointer">
+                📥 Import JSON
                 <input type="file" onchange="importJSONState(this)" class="hidden" accept=".json">
               </label>
-              <a href="recover.html" target="_blank" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 font-bold text-xs transition-all flex items-center gap-1">🛠️ Full Diagnostic Tool</a>
-              <button onclick="resetAllState()" class="px-4 py-2.5 rounded-xl bg-rose-955/80 text-rose-400 border border-rose-900/30 hover:bg-rose-900/20 font-bold text-xs transition-all ml-auto">🔄 Reset All Data</button>
+              <button onclick="exportMultiSheetExcel()" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs transition-all">📊 Export Excel</button>
+              <a href="recover.html" target="_blank" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 font-bold text-xs transition-all">🛠️ Diagnostic Tool</a>
+              <button onclick="resetAllState()" class="px-4 py-2.5 rounded-xl bg-rose-955/80 text-rose-400 border border-rose-900/30 hover:bg-rose-900/20 font-bold text-xs transition-all ml-auto">🔄 Reset All</button>
             </div>
-            <p class="text-[10px] text-slate-500 leading-relaxed font-medium">If any cases logged locally on your phone or laptop were not synced, tap <b>📲 Recover Local Device Storage</b> on that device to automatically pull and merge all entries into Firestore.</p>
+
+            <!-- Local Snapshot History (Layer 1) -->
+            <div>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">📱 Local Snapshots (this device)</p>
+              <div id="backup-local-list" class="space-y-1.5">
+                <p class="text-[10px] text-slate-500 italic">Loading…</p>
+              </div>
+            </div>
+
+            <!-- Cloud Snapshot History (Layer 2) -->
+            <div>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">☁️ Cloud Snapshots (Firestore)</p>
+              <div id="backup-cloud-list" class="space-y-1.5">
+                <p class="text-[10px] text-slate-500 italic">Loading…</p>
+              </div>
+            </div>
+
+            <p class="text-[10px] text-slate-600 leading-relaxed">Snapshots auto-save every time data changes. Tap <b class="text-amber-400">🛡️ Backup Now</b> to force an immediate snapshot.</p>
           </div>
         </div>
       `;
 
       renderSettingsLists();
+      // Load backup panel asynchronously
+      setTimeout(() => refreshBackupPanel(), 200);
     }
 
 
@@ -4466,6 +4625,119 @@
       const dataStr = JSON.stringify(state, null, 2);
       downloadFile(dataStr, `glaucoma_backup_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
     }
+
+
+    // ── BACKUP UI FUNCTIONS ────────────────────────────────────────────────
+
+    function triggerManualBackup() {
+      writeVersionedBackup();
+      writeCloudBackup(true).then(() => {
+        refreshBackupPanel();
+        // Brief green flash on the Backup Now button
+        const btn = document.querySelector('[onclick="triggerManualBackup()"]');
+        if (btn) {
+          const orig = btn.className;
+          btn.textContent = '✅ Saved!';
+          btn.className = btn.className.replace('bg-amber-600 hover:bg-amber-500', 'bg-emerald-600');
+          setTimeout(() => { btn.textContent = '🛡️ Backup Now'; btn.className = orig; }, 2000);
+        }
+      });
+    }
+
+    async function refreshBackupPanel() {
+      // ── Local snapshots ──────────────────────────────────
+      const localEl = document.getElementById('backup-local-list');
+      if (localEl) {
+        const snaps = listLocalSnapshots();
+        if (snaps.length === 0) {
+          localEl.innerHTML = '<p class="text-[10px] text-slate-500 italic">No local snapshots yet. They will appear after the next data change.</p>';
+        } else {
+          localEl.innerHTML = snaps.map((s, i) => {
+            const dt = new Date(s.timestamp);
+            const label = dt.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
+            const totalCases = s.orLogCount + s.preopCount;
+            return `
+              <div class="flex items-center justify-between bg-slate-900/50 border border-white/5 rounded-xl px-3 py-2 gap-2">
+                <div class="min-w-0">
+                  <span class="text-[11px] font-semibold text-slate-300">${label}</span>
+                  <span class="text-[10px] text-slate-500 ml-2">${s.orLogCount} cases · ${s.preopCount} pre-op</span>
+                </div>
+                <div class="flex gap-1.5 shrink-0">
+                  <button onclick="doRestoreFromLocalSnap('${s.key}','merge')" class="text-[10px] px-2.5 py-1 rounded-lg bg-blue-700 hover:bg-blue-600 text-white font-bold transition-all">Merge</button>
+                  <button onclick="doRestoreFromLocalSnap('${s.key}','overwrite')" class="text-[10px] px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold transition-all">Overwrite</button>
+                </div>
+              </div>`;
+          }).join('');
+        }
+      }
+
+      // ── Cloud snapshots ──────────────────────────────────
+      const cloudEl = document.getElementById('backup-cloud-list');
+      if (cloudEl) {
+        cloudEl.innerHTML = '<p class="text-[10px] text-slate-500 italic">Fetching cloud snapshots…</p>';
+        try {
+          const cloudSnaps = await listCloudSnapshots();
+          if (cloudSnaps.length === 0) {
+            cloudEl.innerHTML = '<p class="text-[10px] text-slate-500 italic">No cloud snapshots yet. Tap 🛡️ Backup Now to create one.</p>';
+          } else {
+            cloudEl.innerHTML = cloudSnaps.map(s => {
+              const dt = new Date(s.timestamp);
+              const label = dt.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
+              return `
+                <div class="flex items-center justify-between bg-slate-900/50 border border-white/5 rounded-xl px-3 py-2 gap-2">
+                  <div class="min-w-0">
+                    <span class="text-[11px] font-semibold text-slate-300">☁️ ${label}</span>
+                    <span class="text-[10px] text-slate-500 ml-2">${s.orLogCount} cases · ${s.preopCount} pre-op</span>
+                  </div>
+                  <div class="flex gap-1.5 shrink-0">
+                    <button onclick="doRestoreFromCloudSnap('${s.key}','merge')" class="text-[10px] px-2.5 py-1 rounded-lg bg-blue-700 hover:bg-blue-600 text-white font-bold transition-all">Merge</button>
+                    <button onclick="doRestoreFromCloudSnap('${s.key}','overwrite')" class="text-[10px] px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold transition-all">Overwrite</button>
+                  </div>
+                </div>`;
+            }).join('');
+          }
+        } catch(e) {
+          cloudEl.innerHTML = '<p class="text-[10px] text-rose-400 italic">Failed to load cloud snapshots.</p>';
+        }
+      }
+    }
+
+    function doRestoreFromLocalSnap(key, mode) {
+      const raw = localStorage.getItem(key);
+      if (!raw) { alert('❌ Snapshot not found in local storage.'); return; }
+      try {
+        const snap = JSON.parse(raw);
+        const dt = new Date(snap.timestamp).toLocaleString('th-TH');
+        const msg = mode === 'merge'
+          ? `✅ Merge snapshot from ${dt} into current data?\n(Existing cases will be kept. Missing ones will be added.)`
+          : `⚠️ OVERWRITE all current data with snapshot from ${dt}?\nThis cannot be undone!`;
+        if (!confirm(msg)) return;
+        restoreFromSnapshot(snap, mode);
+        alert(`✅ Restore complete! ${mode === 'merge' ? 'Cases merged.' : 'Data replaced.'}`);
+        renderActiveTab();
+        refreshBackupPanel();
+      } catch(e) { alert('❌ Failed to parse snapshot: ' + e.message); }
+    }
+
+    async function doRestoreFromCloudSnap(dateKey, mode) {
+      if (!db) { alert('❌ Not connected to Firestore.'); return; }
+      try {
+        const doc = await db.collection(COL_BACKUPS).doc(dateKey).get();
+        if (!doc.exists) { alert('❌ Cloud snapshot not found.'); return; }
+        const snap = doc.data();
+        const dt = new Date(snap.timestamp).toLocaleString('th-TH');
+        const msg = mode === 'merge'
+          ? `✅ Merge cloud snapshot from ${dt} into current data?`
+          : `⚠️ OVERWRITE all current data with cloud snapshot from ${dt}?`;
+        if (!confirm(msg)) return;
+        restoreFromSnapshot(snap, mode);
+        alert(`✅ Cloud restore complete! ${mode === 'merge' ? 'Cases merged.' : 'Data replaced.'}`);
+        renderActiveTab();
+        refreshBackupPanel();
+      } catch(e) { alert('❌ Cloud restore failed: ' + e.message); }
+    }
+
+    // ── END BACKUP UI FUNCTIONS ────────────────────────────────────────────
 
     function recoverLocalDeviceData() {
       let recoveredCount = 0;
