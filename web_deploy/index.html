@@ -510,7 +510,7 @@
         <div>
           <div class="flex items-center gap-1.5">
             <h1 class="font-outfit font-bold text-sm tracking-wide text-slate-100">Glaucoma Fellowship</h1>
-            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.1.0</span>
+            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.1.2</span>
           </div>
           <p class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">SS & MN &middot; 2026–2027</p>
         </div>
@@ -4218,36 +4218,21 @@
             </div>
           </div>
 
-          <!-- Data Recovery & Case Restorer -->
-          <div class="glass-card rounded-3xl p-5 border border-amber-900/40 bg-amber-955/10 space-y-4">
-            <div class="flex items-center justify-between">
-              <h3 class="font-outfit font-extrabold text-xs text-amber-300 uppercase tracking-wider">🚑 Case Recovery Center</h3>
-              <span class="text-[10px] text-amber-400 font-bold bg-amber-900/40 px-2.5 py-0.5 rounded-full border border-amber-500/30">Restore Missing Logs</span>
-            </div>
-            <p class="text-xs text-slate-300 leading-relaxed">If any surgical log cases were missing due to cache clearance or snapshot overwrite, click below to log or restore cases for any past date (e.g. 11 Aug 2026).</p>
-            <div class="flex flex-wrap gap-2.5 pt-1">
-              <button onclick="switchTab('cases'); openNewCaseModal('2026-08-11');" class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-lg">
-                <span>➕ Restore Case for 11 Aug 2026</span>
-              </button>
-              <button onclick="switchTab('cases'); openNewCaseModal();" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 font-bold text-xs transition-all">
-                <span>📅 Restore Case for Any Date</span>
-              </button>
-            </div>
-          </div>
-
           <!-- Administrative functions -->
           <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
-            <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-2">💾 Database Backup &amp; Reset</h3>
+            <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-2">💾 Database Backup, Recovery &amp; Reset</h3>
             <div class="flex flex-wrap gap-2.5">
-              <button onclick="exportMultiSheetExcel()" class="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition-all">📊 Export Combined Sheet Backup (CSV/Excel)</button>
+              <button onclick="recoverLocalDeviceData()" class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-lg">📲 Recover Local Device Storage</button>
+              <button onclick="exportMultiSheetExcel()" class="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs transition-all">📊 Export Excel/CSV</button>
               <button onclick="exportJSONState()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all">📤 Export JSON Backup</button>
               <label class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs transition-all cursor-pointer">
-                📥 Import JSON Backup
+                📥 Import / Merge JSON
                 <input type="file" onchange="importJSONState(this)" class="hidden" accept=".json">
               </label>
+              <a href="recover.html" target="_blank" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 font-bold text-xs transition-all flex items-center gap-1">🛠️ Full Diagnostic Tool</a>
               <button onclick="resetAllState()" class="px-4 py-2.5 rounded-xl bg-rose-955/80 text-rose-400 border border-rose-900/30 hover:bg-rose-900/20 font-bold text-xs transition-all ml-auto">🔄 Reset All Data</button>
             </div>
-            <p class="text-[10px] text-slate-500 leading-relaxed font-medium">Resetting will clear all rotation calendars, on-call matrices, surgical logs, and pre-op lists. Always export a JSON backup first.</p>
+            <p class="text-[10px] text-slate-500 leading-relaxed font-medium">If any cases logged locally on your phone or laptop were not synced, tap <b>📲 Recover Local Device Storage</b> on that device to automatically pull and merge all entries into Firestore.</p>
           </div>
         </div>
       `;
@@ -4479,7 +4464,33 @@
 
     function exportJSONState() {
       const dataStr = JSON.stringify(state, null, 2);
-      downloadFile(dataStr, 'glaucoma_backup.json', 'application/json');
+      downloadFile(dataStr, `glaucoma_backup_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+    }
+
+    function recoverLocalDeviceData() {
+      let recoveredCount = 0;
+      ['logbook', 'preop', 'tracker', 'schedule', 'oncall'].forEach(docId => {
+        try {
+          const raw = localStorage.getItem(dbKey(docId));
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (docId === 'logbook') {
+              const { merged, addedLocalCount } = mergeEntries(parsed.entries || parsed.orLog, state.orLog);
+              state.orLog = merged;
+              recoveredCount += addedLocalCount;
+            } else if (docId === 'preop') {
+              const { merged, addedLocalCount } = mergeEntries(parsed.entries || parsed.preop, state.preop);
+              state.preop = merged;
+              recoveredCount += addedLocalCount;
+            }
+          }
+        } catch(e) {
+          console.warn("Local recovery check failed on " + docId, e);
+        }
+      });
+      saveState();
+      alert(`✅ Device Recovery Complete!\nRecovered ${recoveredCount} additional local cases. All data merged and synced.`);
+      renderActiveTab();
     }
 
     function importJSONState(input) {
@@ -4490,16 +4501,27 @@
       reader.onload = function(e) {
         try {
           const imported = JSON.parse(e.target.result);
-          if (imported.sett) state.sett = imported.sett;
+          if (imported.sett) state.sett = { ...state.sett, ...imported.sett };
           if (imported.rotPats) state.rotPats = imported.rotPats;
           if (imported.mr) state.mr = imported.mr;
-          if (imported.call) state.call = imported.call;
-          if (imported.offDuty) state.offDuty = imported.offDuty;
-          if (imported.orLog) state.orLog = imported.orLog;
-          if (imported.preop) state.preop = imported.preop;
+          if (imported.call) state.call = { ...state.call, ...imported.call };
+          if (imported.offDuty) state.offDuty = { ...state.offDuty, ...imported.offDuty };
+          
+          if (imported.orLog || imported.entries) {
+            const { merged } = mergeEntries(imported.orLog || imported.entries, state.orLog);
+            state.orLog = merged;
+          }
+          if (imported.preop) {
+            const { merged } = mergeEntries(imported.preop, state.preop);
+            state.preop = merged;
+          }
+          if (imported.study || imported.cards) {
+            const { merged } = mergeEntries(imported.study || imported.cards, state.study);
+            state.study = merged;
+          }
 
           saveState();
-          alert('✅ Database imported successfully!');
+          alert('✅ Database imported and merged successfully!');
           renderActiveTab();
         } catch (err) {
           alert('❌ Invalid JSON backup file');

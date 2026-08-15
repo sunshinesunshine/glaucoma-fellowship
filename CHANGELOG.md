@@ -2,6 +2,14 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## 🚀 [v6.1.2] - 2026-08-15 — *Data Recovery & Device Storage Recovery*
+
+### 📲 Non-Destructive Sync & Device Recovery Engine
+- **Device Storage Recovery Button**: Added `📲 Recover Local Device Storage` button in Settings to automatically pull and merge any unsynced cases logged locally on a phone or laptop.
+- **Smart Bidirectional Merging**: Snapshot sync uses `mergeEntries()` by unique ID so remote Firestore snapshots never overwrite or erase local device log entries.
+- **Completed Cases Restoration**: Recovered completed cases from pre-op database records into Firestore `logbook`.
+- **Diagnostic Tool Link**: Integrated direct link to `recover.html` for deep storage diagnostics.
+
 ---
 
 ## 🚀 [v6.1.0] - 2026-08-07 — *Claude Design System Modernization & Version Control*
