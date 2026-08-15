@@ -4218,6 +4218,23 @@
             </div>
           </div>
 
+          <!-- Data Recovery & Case Restorer -->
+          <div class="glass-card rounded-3xl p-5 border border-amber-900/40 bg-amber-955/10 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-outfit font-extrabold text-xs text-amber-300 uppercase tracking-wider">🚑 Case Recovery Center</h3>
+              <span class="text-[10px] text-amber-400 font-bold bg-amber-900/40 px-2.5 py-0.5 rounded-full border border-amber-500/30">Restore Missing Logs</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">If any surgical log cases were missing due to cache clearance or snapshot overwrite, click below to log or restore cases for any past date (e.g. 11 Aug 2026).</p>
+            <div class="flex flex-wrap gap-2.5 pt-1">
+              <button onclick="switchTab('cases'); openNewCaseModal('2026-08-11');" class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-lg">
+                <span>➕ Restore Case for 11 Aug 2026</span>
+              </button>
+              <button onclick="switchTab('cases'); openNewCaseModal();" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 font-bold text-xs transition-all">
+                <span>📅 Restore Case for Any Date</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Administrative functions -->
           <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
             <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-2">💾 Database Backup &amp; Reset</h3>
