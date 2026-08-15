@@ -29,7 +29,7 @@ async function fsGet(projectId, apiKey, docPath) {
 }
 
 async function fsAppendLogEntry(projectId, apiKey, entry) {
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${FS_COL}/logbook?key=${apiKey}`;
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${FS_COL}/logbook?updateMask.fieldPaths=entries&key=${apiKey}`;
 
   // First get current entries
   const doc = await fsGet(projectId, apiKey, `${FS_COL}/logbook`);

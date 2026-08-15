@@ -1087,6 +1087,26 @@
       }
     }
 
+    // Smart Merge Helper: merges remote and local entry arrays by unique ID (or fallback composite key)
+    function mergeEntries(remoteList, localList) {
+      const map = new Map();
+      (remoteList || []).forEach(item => {
+        if (!item) return;
+        const key = item.id || `${item.HN || item.hn}_${item.date}_${item.procedure}`;
+        map.set(key, item);
+      });
+      let addedLocalCount = 0;
+      (localList || []).forEach(item => {
+        if (!item) return;
+        const key = item.id || `${item.HN || item.hn}_${item.date}_${item.procedure}`;
+        if (!map.has(key)) {
+          map.set(key, item);
+          addedLocalCount++;
+        }
+      });
+      return { merged: Array.from(map.values()), addedLocalCount };
+    }
+
     function initOnlineSync(callback) {
       // 1. Load local storage cache FIRST so state is populated before any async work
       loadState();
@@ -1139,33 +1159,37 @@
                 if (!fsHasData && localHasData && !initialLoadDone) {
                   writeDocToFirestore(docId);
                 } else {
-                  state.call = data.call || {};
-                  state.offDuty = data.offDuty || {};
+                  state.call = { ...(data.call || {}), ...(state.call || {}) };
+                  state.offDuty = { ...(data.offDuty || {}), ...(state.offDuty || {}) };
                 }
               } else if (docId === 'logbook') {
-                const fsHasData = (data.entries && data.entries.length > 0) || (data.academic && data.academic.length > 0);
-                const localHasData = (state.orLog && state.orLog.length > 0) || (state.academicLog && state.academicLog.length > 0);
-                if (!fsHasData && localHasData && !initialLoadDone) {
+                const remoteEntries = data.entries || [];
+                const remoteAcademic = data.academic || [];
+                const { merged: mergedLog, addedLocalCount: addedLog } = mergeEntries(remoteEntries, state.orLog);
+                const { merged: mergedAcad, addedLocalCount: addedAcad } = mergeEntries(remoteAcademic, state.academicLog);
+                
+                state.orLog = mergedLog;
+                state.academicLog = mergedAcad;
+                
+                // If local device had entries not present in remote, sync merged dataset back to Firestore
+                if ((addedLog > 0 || addedAcad > 0) && isOnlineDB) {
                   writeDocToFirestore(docId);
-                } else {
-                  state.orLog = data.entries || [];
-                  state.academicLog = data.academic || [];
                 }
               } else if (docId === 'preop') {
-                const fsHasData = data.entries && data.entries.length > 0;
-                const localHasData = state.preop && state.preop.length > 0;
-                if (!fsHasData && localHasData && !initialLoadDone) {
+                const remotePreop = data.entries || [];
+                const { merged: mergedPreop, addedLocalCount } = mergeEntries(remotePreop, state.preop);
+                state.preop = mergedPreop;
+                
+                if (addedLocalCount > 0 && isOnlineDB) {
                   writeDocToFirestore(docId);
-                } else {
-                  state.preop = data.entries || [];
                 }
               } else if (docId === 'study') {
-                const fsHasData = data.cards && data.cards.length > 0;
-                const localHasData = state.study && state.study.length > 0;
-                if (!fsHasData && localHasData && !initialLoadDone) {
+                const remoteCards = data.cards || [];
+                const { merged: mergedStudy, addedLocalCount } = mergeEntries(remoteCards, state.study);
+                state.study = mergedStudy;
+                
+                if (addedLocalCount > 0 && isOnlineDB) {
                   writeDocToFirestore(docId);
-                } else {
-                  state.study = data.cards || [];
                 }
               }
             } else {

@@ -412,13 +412,39 @@
         return;
       }
 
+      // Helper to merge entry lists by unique id or composite key
+      function mergeTrackerEntries(remoteList, localList) {
+        const map = new Map();
+        (remoteList || []).forEach(item => {
+          if (!item) return;
+          const key = item.id || `${item.hn || item.HN}_${item.date}_${item.procedure}`;
+          map.set(key, item);
+        });
+        let addedLocalCount = 0;
+        (localList || []).forEach(item => {
+          if (!item) return;
+          const key = item.id || `${item.hn || item.HN}_${item.date}_${item.procedure}`;
+          if (!map.has(key)) {
+            map.set(key, item);
+            addedLocalCount++;
+          }
+        });
+        return { merged: Array.from(map.values()), addedLocalCount };
+      }
+
       // 1. Tracker doc snapshot
       db.collection(COL).doc('tracker').onSnapshot(snap => {
         if (snap.exists) {
           const data = snap.data();
           state.settings = data.settings || state.settings;
-          state.patients = data.patients || [];
+          const remotePatients = data.patients || [];
+          const { merged, addedLocalCount } = mergeTrackerEntries(remotePatients, state.patients);
+          state.patients = merged;
           localStorage.setItem(dbKey('tracker'), JSON.stringify(state));
+          
+          if (addedLocalCount > 0 && isOnlineDB) {
+            saveState();
+          }
         } else {
           // Init empty database record on Firestore
           saveState();
@@ -432,11 +458,13 @@
         updateSyncBadge(err.message);
       });
 
-      // 2. OR Logbook snapshot (Read-only dependency)
+      // 2. OR Logbook snapshot (Read-only dependency with smart merge)
       db.collection(COL).doc('logbook').onSnapshot(snap => {
         if (snap.exists) {
           const data = snap.data();
-          orLog = data.entries || [];
+          const remoteEntries = data.entries || [];
+          const { merged } = mergeTrackerEntries(remoteEntries, orLog);
+          orLog = merged;
           localStorage.setItem(dbKey('logbook'), JSON.stringify({ entries: orLog }));
           checkNewOrCases();
           renderView();
