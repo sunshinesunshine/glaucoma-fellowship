@@ -510,7 +510,7 @@
         <div>
           <div class="flex items-center gap-1.5">
             <h1 class="font-outfit font-bold text-sm tracking-wide text-slate-100">Glaucoma Fellowship</h1>
-            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.2.1</span>
+            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.3.0</span>
           </div>
           <p class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">SS & MN &middot; 2026–2027</p>
         </div>
@@ -1099,26 +1099,58 @@
         }
 
         const po = localStorage.getItem(dbKey('preop'));
-        if (po) state.preop = JSON.parse(po).entries || [];
+        if (po) {
+          // Pre-op should only contain active pre-op patients (filter out Done cases)
+          state.preop = (JSON.parse(po).entries || []).filter(e => e.status !== 'Done');
+        }
         
         const st = localStorage.getItem(dbKey('study'));
         if (st) state.study = JSON.parse(st).cards || [];
+
+        // Apply deleted tombstones to local state immediately
+        const delIds = getDeletedIds();
+        if (delIds.size > 0) {
+          state.orLog = state.orLog.filter(e => !delIds.has(e.id));
+          state.academicLog = state.academicLog.filter(e => !delIds.has(e.id));
+          state.preop = state.preop.filter(e => !delIds.has(e.id));
+          state.study = state.study.filter(e => !delIds.has(e.id));
+        }
       } catch(e) {
         console.error("Local database read failed, using defaults", e);
       }
     }
 
-    // Smart Merge Helper: merges remote and local entry arrays by unique ID (or fallback composite key)
+    // ── DELETION TOMBSTONE SYSTEM ─────────────────────────
+    const DEL_KEY = 'gf_deleted_ids';
+    function getDeletedIds() {
+      try {
+        const stored = localStorage.getItem(DEL_KEY);
+        return new Set(stored ? JSON.parse(stored) : []);
+      } catch(e) { return new Set(); }
+    }
+    function markIdDeleted(id) {
+      if (!id) return;
+      try {
+        const set = getDeletedIds();
+        set.add(id);
+        localStorage.setItem(DEL_KEY, JSON.stringify(Array.from(set).slice(-500)));
+      } catch(e) {}
+    }
+
+    // Smart Merge Helper: merges remote and local entry arrays by unique ID (or fallback composite key), filtering out deleted items
     function mergeEntries(remoteList, localList) {
+      const deletedIds = getDeletedIds();
       const map = new Map();
       (remoteList || []).forEach(item => {
         if (!item) return;
+        if (item.id && deletedIds.has(item.id)) return; // Skip deleted items
         const key = item.id || `${item.HN || item.hn}_${item.date}_${item.procedure}`;
         map.set(key, item);
       });
       let addedLocalCount = 0;
       (localList || []).forEach(item => {
         if (!item) return;
+        if (item.id && deletedIds.has(item.id)) return; // Skip deleted items
         const key = item.id || `${item.HN || item.hn}_${item.date}_${item.procedure}`;
         if (!map.has(key)) {
           map.set(key, item);
@@ -1300,33 +1332,48 @@
                   state.offDuty = { ...(data.offDuty || {}), ...(state.offDuty || {}) };
                 }
               } else if (docId === 'logbook') {
-                const remoteEntries = data.entries || [];
-                const remoteAcademic = data.academic || [];
-                const { merged: mergedLog, addedLocalCount: addedLog } = mergeEntries(remoteEntries, state.orLog);
-                const { merged: mergedAcad, addedLocalCount: addedAcad } = mergeEntries(remoteAcademic, state.academicLog);
+                const delIds = getDeletedIds();
+                const remoteEntries = (data.entries || []).filter(e => !e.id || !delIds.has(e.id));
+                const remoteAcademic = (data.academic || []).filter(e => !e.id || !delIds.has(e.id));
                 
-                state.orLog = mergedLog;
-                state.academicLog = mergedAcad;
-                
-                // If local device had entries not present in remote, sync merged dataset back to Firestore
-                if ((addedLog > 0 || addedAcad > 0) && isOnlineDB) {
-                  writeDocToFirestore(docId);
+                if (initialLoadDone) {
+                  // Live server snapshot update
+                  state.orLog = remoteEntries;
+                  state.academicLog = remoteAcademic;
+                } else {
+                  const { merged: mergedLog, addedLocalCount: addedLog } = mergeEntries(remoteEntries, state.orLog);
+                  const { merged: mergedAcad, addedLocalCount: addedAcad } = mergeEntries(remoteAcademic, state.academicLog);
+                  state.orLog = mergedLog;
+                  state.academicLog = mergedAcad;
+                  if ((addedLog > 0 || addedAcad > 0) && isOnlineDB) {
+                    writeDocToFirestore(docId);
+                  }
                 }
               } else if (docId === 'preop') {
-                const remotePreop = data.entries || [];
-                const { merged: mergedPreop, addedLocalCount } = mergeEntries(remotePreop, state.preop);
-                state.preop = mergedPreop;
+                const delIds = getDeletedIds();
+                const remotePreop = (data.entries || []).filter(e => e.status !== 'Done' && (!e.id || !delIds.has(e.id)));
                 
-                if (addedLocalCount > 0 && isOnlineDB) {
-                  writeDocToFirestore(docId);
+                if (initialLoadDone) {
+                  state.preop = remotePreop;
+                } else {
+                  const { merged: mergedPreop, addedLocalCount } = mergeEntries(remotePreop, state.preop.filter(e => e.status !== 'Done'));
+                  state.preop = mergedPreop;
+                  if (addedLocalCount > 0 && isOnlineDB) {
+                    writeDocToFirestore(docId);
+                  }
                 }
               } else if (docId === 'study') {
-                const remoteCards = data.cards || [];
-                const { merged: mergedStudy, addedLocalCount } = mergeEntries(remoteCards, state.study);
-                state.study = mergedStudy;
+                const delIds = getDeletedIds();
+                const remoteCards = (data.cards || []).filter(e => !e.id || !delIds.has(e.id));
                 
-                if (addedLocalCount > 0 && isOnlineDB) {
-                  writeDocToFirestore(docId);
+                if (initialLoadDone) {
+                  state.study = remoteCards;
+                } else {
+                  const { merged: mergedStudy, addedLocalCount } = mergeEntries(remoteCards, state.study);
+                  state.study = mergedStudy;
+                  if (addedLocalCount > 0 && isOnlineDB) {
+                    writeDocToFirestore(docId);
+                  }
                 }
               }
             } else {
@@ -1464,14 +1511,25 @@
       }
     }
 
+    function getInitialMonthIndex() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      const idx = MONTHS.findIndex(item => item.y === y && item.m === m);
+      return idx >= 0 ? idx : 0;
+    }
+
     // ── APPLICATION SESSION VARIABLES ─────────────────────
+    const _initMi = getInitialMonthIndex();
     let session = {
       activeTab: 'summary',
       summaryViewMode: 'calendar',
-      sMi: 0,
-      cMi: 0,
-      caseMi: 0,
+      sMi: _initMi,
+      cMi: _initMi,
+      caseMi: _initMi,
       caseViewMode: 'calendar',
+      caseTimeFilter: 'all',
+      caseFilterDate: dStr(new Date()),
       activeRotFellow: 'SS',
       activeRotTmplTab: 'A',
       activeCasesTab: 'logged',
@@ -3233,10 +3291,8 @@
         notes:      po.notes      || ''
       });
 
-      // Mark pre-op as Done
-      state.preop = state.preop.map(e =>
-        e.id === preOpId ? { ...e, status: 'Done' } : e
-      );
+      // Remove from Pre-Op list
+      state.preop = state.preop.filter(e => e.id !== preOpId);
 
       saveState();
       renderActiveTab();
@@ -3302,32 +3358,64 @@
           ` : ''}
 
           <!-- Procedure stats bar (only show in list view for Completed Case Log) -->
-          ${(session.activeCasesTab === 'logged' && session.caseViewMode === 'table') ? `
+          ${(session.activeCasesTab === 'logged' && session.caseViewMode === 'table') ? (() => {
+            const targets = state.sett.targets || {};
+            const byProc = caseStats[session.activeRotFellow]?.byProc || {};
+            const allSummaryProcs = Array.from(new Set([
+              ...Object.keys(targets),
+              ...Object.keys(byProc)
+            ]));
+            allSummaryProcs.sort((a, b) => {
+              const tgtA = targets[a] || 0;
+              const tgtB = targets[b] || 0;
+              if (tgtA > 0 && tgtB === 0) return -1;
+              if (tgtA === 0 && tgtB > 0) return 1;
+              const countA = byProc[a] || 0;
+              const countB = byProc[b] || 0;
+              return countB - countA;
+            });
+            return `
             <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-3">
               <div class="flex items-center justify-between">
-                <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider">⚕️ Case Volume Summary</h3>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider">⚕️ Case Volume Summary</h3>
+                  <span class="text-[10px] text-slate-400 font-normal">(Competency Targets)</span>
+                </div>
                 <div class="flex gap-1 bg-slate-900/60 p-0.5 rounded-xl border border-white/5">
                   <button onclick="setCasesFellow('SS')" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${session.activeRotFellow === 'SS' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">SS</button>
                   <button onclick="setCasesFellow('MN')" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${session.activeRotFellow === 'MN' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white'}">MN</button>
                 </div>
               </div>
-              <div class="grid grid-cols-2 gap-2">
-                ${Object.entries(caseStats[session.activeRotFellow]?.byProc || {}).sort((a,b) => b[1]-a[1]).map(([proc, n]) => {
-                  const tgt = (state.sett.targets || {})[proc] || 0;
-                  const pct = tgt > 0 ? Math.min(100, n/tgt*100) : 0;
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                ${allSummaryProcs.map(proc => {
+                  const n = byProc[proc] || 0;
+                  const tgt = targets[proc] || 0;
+                  const pct = tgt > 0 ? Math.min(100, Math.round(n / tgt * 100)) : 0;
                   const col = pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
-                  return `<div class="bg-slate-955/40 border border-white/5 rounded-2xl p-3 cursor-pointer hover:bg-slate-800/20" onclick="openDrillModal('${proc}','${session.activeRotFellow}')">
-                    <div class="flex justify-between text-xs mb-1.5">
-                      <span class="text-slate-300 font-semibold truncate underline max-w-[70%]">${proc}</span>
-                      <span class="font-bold text-slate-200">${n}${tgt > 0 ? ` <span class="text-[10px] text-slate-500">/ ${tgt}</span>` : ''}</span>
+                  return `<div class="bg-slate-955/40 border border-white/5 rounded-2xl p-3 cursor-pointer hover:bg-slate-800/30 transition-all flex flex-col justify-between" onclick="openDrillModal('${proc.replace(/'/g, "\\'")}','${session.activeRotFellow}')">
+                    <div class="flex justify-between items-start text-xs mb-1.5 gap-1">
+                      <span class="text-slate-300 font-semibold truncate underline max-w-[70%]" title="${proc}">${proc}</span>
+                      <span class="font-bold ${tgt > 0 && n >= tgt ? 'text-emerald-400' : 'text-slate-200'} shrink-0">
+                        ${n}${tgt > 0 ? `<span class="text-[10px] text-slate-500 font-normal"> / ${tgt}</span>` : ''}
+                      </span>
                     </div>
-                    ${tgt > 0 ? `<div class="h-1.5 bg-slate-900 rounded-full overflow-hidden"><div class="h-full rounded-full ${col}" style="width:${pct}%"></div></div>` : ''}
+                    ${tgt > 0 ? `
+                      <div class="h-1.5 bg-slate-900 rounded-full overflow-hidden mb-1">
+                        <div class="h-full rounded-full ${col} transition-all duration-500" style="width:${pct}%"></div>
+                      </div>
+                      <div class="flex justify-between items-center text-[9px] text-slate-500">
+                        <span>${pct >= 100 ? '✅ Target Met' : 'Target'}</span>
+                        <span class="font-bold ${pct >= 100 ? 'text-emerald-400' : 'text-slate-400'}">${pct}%</span>
+                      </div>
+                    ` : `
+                      <div class="text-[9px] text-slate-500 mt-1">Logged case</div>
+                    `}
                   </div>`;
                 }).join('')}
-                ${Object.keys(caseStats[session.activeRotFellow]?.byProc || {}).length === 0 ? `<div class="col-span-2 text-center text-slate-500 py-4 text-xs">No cases logged yet.</div>` : ''}
+                ${allSummaryProcs.length === 0 ? `<div class="col-span-full text-center text-slate-500 py-4 text-xs">No competency targets configured.</div>` : ''}
               </div>
-            </div>
-          ` : ''}
+            </div>`;
+          })() : ''}
 
           <!-- Main Case view container -->
           <div id="cases-content-view"></div>
@@ -3345,16 +3433,39 @@
 
         contentView.innerHTML = `
           <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
-            <div class="flex items-center gap-3">
-              <input 
-                type="text" 
-                id="cases-search-bar" 
-                placeholder="${searchPlaceholder}" 
-                value="${session.orSearch}"
-                oninput="handleCasesSearch(this.value)"
-                class="flex-1 bg-slate-955/80 text-xs border border-white/5 rounded-xl px-3.5 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-500"
-              >
-              ${session.orSearch ? `<button onclick="handleCasesSearch('')" class="text-xs text-slate-400 hover:text-white font-bold px-2">Clear</button>` : ''}
+            <!-- Search & Time Range Bar -->
+            <div class="flex items-center justify-between flex-wrap gap-2.5">
+              <!-- Search Box -->
+              <div class="flex-1 min-w-[200px] relative">
+                <input 
+                  type="text" 
+                  id="cases-search-bar" 
+                  placeholder="${searchPlaceholder}" 
+                  value="${session.orSearch}"
+                  oninput="handleCasesSearch(this.value)"
+                  class="w-full bg-slate-955/80 text-xs border border-white/5 rounded-xl px-3.5 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500 transition-all placeholder-slate-500"
+                >
+                ${session.orSearch ? `<button onclick="handleCasesSearch('')" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white font-bold px-1">✕</button>` : ''}
+              </div>
+
+              <!-- Time Scope Selector (All / Day / Week / Month) -->
+              <div class="flex items-center gap-1 bg-slate-900/90 p-0.5 rounded-xl border border-white/5 select-none text-xs">
+                <button onclick="setCaseTimeFilter('all')" class="px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${session.caseTimeFilter === 'all' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">ทั้งหมด (All)</button>
+                <button onclick="setCaseTimeFilter('day')" class="px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${session.caseTimeFilter === 'day' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">วัน (Day)</button>
+                <button onclick="setCaseTimeFilter('week')" class="px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${session.caseTimeFilter === 'week' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">สัปดาห์ (Week)</button>
+                <button onclick="setCaseTimeFilter('month')" class="px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${session.caseTimeFilter === 'month' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">เดือน (Month)</button>
+              </div>
+
+              ${session.caseTimeFilter !== 'all' ? `
+                <!-- Period Navigator -->
+                <div class="flex items-center gap-1.5 bg-slate-900/90 border border-white/5 rounded-xl px-2 py-1 select-none">
+                  <button onclick="shiftCaseFilterDate(-1)" class="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center text-xs" title="Previous period">&lsaquo;</button>
+                  <span class="text-[11px] font-bold text-slate-200 min-w-[90px] text-center">${getCaseFilterLabel()}</span>
+                  <button onclick="shiftCaseFilterDate(1)" class="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center text-xs" title="Next period">&rsaquo;</button>
+                  <input type="date" value="${session.caseFilterDate || dStr(new Date())}" onchange="onCaseFilterDateChange(this.value)" class="bg-transparent text-[10px] text-slate-400 focus:outline-none cursor-pointer w-5" title="Pick date">
+                  <button onclick="onCaseFilterDateChange(dStr(new Date()))" class="text-[10px] font-bold text-blue-400 hover:underline px-1">Today</button>
+                </div>
+              ` : ''}
             </div>
 
             <div class="overflow-x-auto rounded-2xl border border-white/5 bg-slate-955/20">
@@ -3627,6 +3738,48 @@
       session.activeCasesTab = tab;
       renderActiveTab();
     }
+
+    function setCaseTimeFilter(filter) {
+      session.caseTimeFilter = filter;
+      renderActiveTab();
+    }
+
+    function shiftCaseFilterDate(delta) {
+      const cur = new Date((session.caseFilterDate || dStr(new Date())) + 'T12:00:00');
+      if (session.caseTimeFilter === 'day') {
+        cur.setDate(cur.getDate() + delta);
+      } else if (session.caseTimeFilter === 'week') {
+        cur.setDate(cur.getDate() + (delta * 7));
+      } else if (session.caseTimeFilter === 'month') {
+        cur.setMonth(cur.getMonth() + delta);
+      }
+      session.caseFilterDate = dStr(cur);
+      renderActiveTab();
+    }
+
+    function onCaseFilterDateChange(newDateStr) {
+      if (!newDateStr) return;
+      session.caseFilterDate = newDateStr;
+      renderActiveTab();
+    }
+
+    function getCaseFilterLabel() {
+      const d = new Date((session.caseFilterDate || dStr(new Date())) + 'T12:00:00');
+      if (session.caseTimeFilter === 'day') {
+        return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+      } else if (session.caseTimeFilter === 'week') {
+        const day = d.getDay();
+        const diffToMon = d.getDate() - day + (day === 0 ? -6 : 1);
+        const mon = new Date(d);
+        mon.setDate(diffToMon);
+        const sun = new Date(mon);
+        sun.setDate(mon.getDate() + 6);
+        return `${mon.getDate()} ${mon.toLocaleDateString('th-TH', { month: 'short' })} – ${sun.getDate()} ${sun.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' })}`;
+      } else if (session.caseTimeFilter === 'month') {
+        return d.toLocaleDateString('th-TH', { month: 'short', year: 'numeric' });
+      }
+      return 'ทั้งหมด';
+    }
     
     function handleCasesSearch(q) {
       session.orSearch = q;
@@ -3648,6 +3801,28 @@
       const q = session.orSearch.toLowerCase();
       
       const filtered = list.filter(e => {
+        // 1. Time range filter (All / Day / Week / Month)
+        if (session.caseTimeFilter && session.caseTimeFilter !== 'all' && e.date) {
+          const targetDate = session.caseFilterDate || dStr(new Date());
+          if (session.caseTimeFilter === 'day') {
+            if (e.date !== targetDate) return false;
+          } else if (session.caseTimeFilter === 'month') {
+            if (!e.date.startsWith(targetDate.slice(0, 7))) return false;
+          } else if (session.caseTimeFilter === 'week') {
+            const d = new Date(targetDate + 'T12:00:00');
+            const day = d.getDay();
+            const diffToMon = d.getDate() - day + (day === 0 ? -6 : 1);
+            const mon = new Date(d);
+            mon.setDate(diffToMon);
+            const sun = new Date(mon);
+            sun.setDate(mon.getDate() + 6);
+            const monStr = dStr(mon);
+            const sunStr = dStr(sun);
+            if (e.date < monStr || e.date > sunStr) return false;
+          }
+        }
+
+        // 2. Search query filter
         if (!q) return true;
         if (isAcademic) {
           return (e.type || '').toLowerCase().includes(q) || 
@@ -3799,6 +3974,7 @@
 
     function deleteAcademic(id) {
       if (!confirm('Are you sure you want to delete this presentation log?')) return;
+      markIdDeleted(id);
       state.academicLog = state.academicLog.filter(e => e.id !== id);
       saveState();
       renderActiveTab();
@@ -4020,12 +4196,9 @@
 
     function deleteCase(id) {
       if (confirm('Are you sure you want to permanently delete this case?')) {
-        const isLogged = state.orLog.some(e => e.id === id);
-        if (isLogged) {
-          state.orLog = state.orLog.filter(e => e.id !== id);
-        } else {
-          state.preop = state.preop.filter(e => e.id !== id);
-        }
+        markIdDeleted(id);
+        state.orLog = state.orLog.filter(e => e.id !== id);
+        state.preop = state.preop.filter(e => e.id !== id);
         saveState();
         renderActiveTab();
       }

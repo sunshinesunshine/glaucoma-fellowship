@@ -2,6 +2,25 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## 🚀 [v6.3.0] - 2026-08-17 — *Competency Targets Summary, Dynamic Today Month, Pre-Op OR Clean-Up, Deletion Tombstones & Time-Scoped Case Filters*
+
+### ⚕️ Case Volume Summary & Competency Targets
+- **Dynamic Competency Targets Display**: Case Volume Summary in the Completed Case Log now automatically renders all configured procedures from **Competency Case Targets** (Settings tab) along with logged case counts, percentage bars, and completion indicators (`✅ Target Met`).
+
+### 📅 Today-Centric Calendar Default
+- **Dynamic Initial Month**: Calendar views across all tabs (Summary, Rotation Schedule, On-Call, Case Log) now automatically open to the current active month (e.g. August 2026 for August dates) instead of hardcoding to July.
+
+### 🧹 Pre-Op List Auto-Removal & Promotion
+- **Clean Promotion to OR**: When a pre-op patient is promoted (`→ OR`) or marked as `Done`, the case is automatically removed from the Pre-Op List and appended to the Completed Case Log without leaving ghost entries.
+
+### 🛡️ Deletion Tombstone & Ghost Case Elimination
+- **Tombstone Registry (`gf_deleted_ids`)**: Fixed the database synchronization bug where deleted cases resurfaced upon sync. Explicit user deletions are marked with tombstones and excluded from bidirectional merging and real-time Firestore snapshots.
+
+### ⏱️ Time-Scoped Case Filters (Day / Week / Month / All)
+- **Time Scope Switcher**: Added interactive filter pills (`ทั้งหมด (All)`, `วัน (Day)`, `สัปดาห์ (Week)`, `เดือน (Month)`) in the Cases List View with period navigation (`‹ ›`), date picker shortcuts, and instant `Today` reset.
+
+---
+
 ## 🔬 [v6.2.1] - 2026-08-17 — *IOL Type Configuration & Logging Support*
 
 ### 🔬 IOL Type Logging & Settings Presets
