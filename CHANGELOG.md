@@ -2,6 +2,17 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## 🔬 [v6.2.1] - 2026-08-17 — *IOL Type Configuration & Logging Support*
+
+### 🔬 IOL Type Logging & Settings Presets
+- **Conditional IOL Field**: Operation/Procedure selection containing `"IOL"` (e.g. `PE c IOL`, `Phaco+Trab`, `Ahmed + PE c IOL`) automatically reveals the dedicated **IOL Type** selection dropdown in the Add/Edit Case Modal.
+- **Preset Management in Settings**: Added **🔬 IOL Types (Presets)** management card in the Settings tab with add and delete capabilities (default presets include Monofocal Alcon/TECNIS/Bausch, Toric, EDOF, Multifocal PanOptix, CTR, Sulcus PMMA).
+- **Drilldown Modal Display**: Case drilldown popup now displays the selected IOL Type alongside diagnosis and supervisor metadata.
+- **Pre-Op to OR Promotion**: `promoteToOR()` safely migrates selected `iolType` and patient name when moving confirmed pre-op cases to completed OR logs.
+- **Excel & CSV Export**: Updated `exportMultiSheetExcel()` and `exportORcsv()` to include `IOL Type` columns and settings preset documentation.
+
+---
+
 ## 🛡️ [v6.2.0] - 2026-08-15 — *4-Layer Backup & Recovery System*
 
 ### 🛡️ Backup Engine (Prevents Future Data Loss)

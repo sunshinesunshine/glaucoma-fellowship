@@ -510,7 +510,7 @@
         <div>
           <div class="flex items-center gap-1.5">
             <h1 class="font-outfit font-bold text-sm tracking-wide text-slate-100">Glaucoma Fellowship</h1>
-            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.2.0</span>
+            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.2.1</span>
           </div>
           <p class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">SS & MN &middot; 2026–2027</p>
         </div>
@@ -660,8 +660,17 @@
         </div>
         <div class="col-span-2">
           <label class="text-[10px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider">Operation / Procedure</label>
-          <select id="case-proc" class="w-full bg-slate-900 border border-white/5 rounded-xl px-3 py-2 text-slate-200 focus:outline-none">
+          <select id="case-proc" onchange="onProcedureChange(this.value)" class="w-full bg-slate-900 border border-white/5 rounded-xl px-3 py-2 text-slate-200 focus:outline-none">
             <!-- Render procedures options -->
+          </select>
+        </div>
+        <!-- IOL Type Field — shown only when procedure contains "IOL" -->
+        <div id="iol-type-field" class="col-span-2 hidden">
+          <label class="text-[10px] font-semibold text-teal-400 block mb-1 uppercase tracking-wider flex items-center gap-1.5">
+            <span>🔬</span> IOL Type
+          </label>
+          <select id="case-iol-type" class="w-full bg-slate-900 border border-teal-800/40 rounded-xl px-3 py-2 text-slate-200 focus:outline-none text-xs">
+            <!-- Populated dynamically -->
           </select>
         </div>
         <div class="col-span-2">
@@ -899,8 +908,9 @@
       targets: { Trabeculectomy: 20, 'Ahmed Valve': 10, 'MIGS–iStent': 5, CPC: 10, SLT: 20, 'YAG PI': 15 },
       sups: ['กุลวรรณ', 'นพคุณ', 'สุพัตรา', 'อรอร', 'ดวงดาว', 'เพ็ญพรรณ'],
       maOpts: ['Morning Report', 'Photo Quiz', 'Journal Club', 'Case Discussion', 'Grand Round', 'Interesting Case', 'M&M Conference', 'Laser Teaching'],
-      procs: ['Trabeculectomy', 'Ahmed Valve', 'MIGS–iStent', 'MIGS–KDB Goniotomy', 'CPC', 'Bleb Revision', 'Needling+5FU', 'Phaco+Trab', 'SLT', 'YAG PI', 'ALT', '5-FU Injection', 'GATT', 'ECP'],
+      procs: ['Trabeculectomy', 'Ahmed Valve', 'MIGS–iStent', 'MIGS–KDB Goniotomy', 'CPC', 'Bleb Revision', 'Needling+5FU', 'PE c IOL', 'Phaco+Trab', 'SLT', 'YAG PI', 'ALT', '5-FU Injection', 'GATT', 'ECP'],
       diags: ['POAG', 'PACG', 'NTG', 'PXG', 'Neovascular GLC', 'Uveitic GLC', 'Steroid GLC', 'Traumatic GLC', 'Secondary GLC', 'OHT', 'GLC Suspect', 'Congenital GLC'],
+      iolTypes: ['Monofocal (Alcon SN60WF)', 'Monofocal (TECNIS)', 'Monofocal (Bausch PCB00)', 'Aspheric IQ (AcrySof)', 'Toric IOL', 'EDOF (AT LARA)', 'Multifocal (PanOptix)', 'CTR', 'Sulcus (PMMA)'],
       morningActSched: ['Morning Report', 'Photo Quiz', 'Journal Club', 'Case Discussion', 'Grand Round'],
       acts: [
         { name: 'OPD', clinical: true },
@@ -1059,7 +1069,12 @@
     function loadState() {
       try {
         const s = localStorage.getItem(dbKey('settings'));
-        if (s) state.sett = { ...DEF_SETT, ...JSON.parse(s) };
+        if (s) {
+          state.sett = { ...DEF_SETT, ...JSON.parse(s) };
+          if (!state.sett.iolTypes || state.sett.iolTypes.length === 0) {
+            state.sett.iolTypes = [...DEF_SETT.iolTypes];
+          }
+        }
         
         const r = localStorage.getItem(dbKey('schedule'));
         if (r) {
@@ -1259,6 +1274,9 @@
               if (docId === 'settings') {
                 if (data && Object.keys(data).length > 0) {
                   state.sett = { ...DEF_SETT, ...data };
+                  if (!state.sett.iolTypes || state.sett.iolTypes.length === 0) {
+                    state.sett.iolTypes = [...DEF_SETT.iolTypes];
+                  }
                 } else if (!initialLoadDone) {
                   writeDocToFirestore(docId);
                 }
@@ -3206,7 +3224,9 @@
         date:       po.date,
         fellow:     po.surgeon || 'SS',
         HN:         po.HN || '',
+        name:       po.name || '',
         procedure:  po.procedure,
+        iolType:    po.iolType || '',
         laterality: po.laterality || 'OD',
         supervisor: po.supervisor || '',
         diagnosis:  po.diagnosis  || '',
@@ -3808,6 +3828,8 @@
       document.getElementById('case-notes').value = '';
       
       populateSelectOptions();
+      onProcedureChange(document.getElementById('case-proc').value);
+      document.getElementById('case-iol-type').value = '';
       
       const preopFields = document.getElementById('preop-extra-fields');
       if (type === 'preop') {
@@ -3827,11 +3849,29 @@
       const diagSel = document.getElementById('case-diag');
       const supSel = document.getElementById('case-sup');
       const statusSel = document.getElementById('case-status');
+      const iolSel = document.getElementById('case-iol-type');
 
       procSel.innerHTML = state.sett.procs.map(p => `<option value="${p}">${p}</option>`).join('');
       diagSel.innerHTML = (state.sett.diags || DIAGS).map(d => `<option value="${d}">${d}</option>`).join('');
       supSel.innerHTML = state.sett.sups.map(s => `<option value="${s}">${s}</option>`).join('');
       statusSel.innerHTML = PRE_ST.map(s => `<option value="${s}">${s}</option>`).join('');
+      // Populate IOL types
+      const iolTypes = state.sett.iolTypes || [];
+      iolSel.innerHTML = '<option value="">— Select IOL Type —</option>' +
+        iolTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+    }
+
+    // Show/hide IOL type field based on selected procedure
+    function onProcedureChange(procValue) {
+      const iolField = document.getElementById('iol-type-field');
+      if (!iolField) return;
+      const hasIOL = (procValue || '').toUpperCase().includes('IOL');
+      if (hasIOL) {
+        iolField.classList.remove('hidden');
+      } else {
+        iolField.classList.add('hidden');
+        document.getElementById('case-iol-type').value = '';
+      }
     }
 
     function closeCaseModal() {
@@ -3865,6 +3905,7 @@
       const fellow = document.getElementById('case-fellow').value;
       const laterality = document.getElementById('case-laterality').value;
       const procedure = document.getElementById('case-proc').value;
+      const iolType = document.getElementById('case-iol-type').value;
       const diagnosis = document.getElementById('case-diag').value;
       const supervisor = document.getElementById('case-sup').value;
       const notes = document.getElementById('case-notes').value.trim();
@@ -3891,6 +3932,7 @@
         name,
         laterality,
         procedure,
+        iolType: iolType || '',
         diagnosis,
         supervisor,
         notes
@@ -3960,6 +4002,8 @@
       
       populateSelectOptions();
       document.getElementById('case-proc').value = entry.procedure;
+      onProcedureChange(entry.procedure);
+      document.getElementById('case-iol-type').value = entry.iolType || '';
       document.getElementById('case-diag').value = entry.diagnosis;
       document.getElementById('case-sup').value = entry.supervisor;
 
@@ -4007,6 +4051,7 @@
                 <div>
                   <div class="font-bold text-slate-200">${e.HN} &middot; <span class="text-slate-400 font-medium">${e.laterality || 'OD'}</span></div>
                   <div class="text-[10px] text-slate-500 mt-1 font-semibold">Diag: ${e.diagnosis || '—'} &middot; Supervisor: ${e.supervisor || '—'}</div>
+                  ${e.iolType ? `<div class="text-[10px] text-teal-400 font-semibold mt-1 flex items-center gap-1"><span>🔬</span> IOL: ${e.iolType}</div>` : ''}
                   ${e.notes ? `<div class="text-[10px] text-blue-300 mt-1.5 leading-normal">Note: ${e.notes}</div>` : ''}
                 </div>
                 <span class="text-[10px] font-bold text-slate-500 shrink-0">${new Date(e.date + 'T12:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span>
@@ -4110,12 +4155,13 @@
       };
 
       // 1. OR Log Worksheet
-      const orHeaders = ['Date', 'HN', 'Fellow', 'Procedure', 'Diagnosis', 'Laterality', 'Supervisor', 'Notes'];
+      const orHeaders = ['Date', 'HN', 'Fellow', 'Procedure', 'IOL Type', 'Diagnosis', 'Laterality', 'Supervisor', 'Notes'];
       const orRows = state.orLog.map(r => [
         r.date || '',
         r.HN || '',
         r.fellow || '',
         r.procedure || '',
+        r.iolType || '',
         r.diagnosis || '',
         r.laterality || '',
         r.supervisor || '',
@@ -4124,12 +4170,13 @@
       xml += createWorksheet('OR Log', orHeaders, orRows);
 
       // 2. Pre-Op List Worksheet
-      const preopHeaders = ['Date', 'HN', 'Surgeon', 'Procedure', 'Diagnosis', 'Laterality', 'Supervisor', 'Status', 'Notes'];
+      const preopHeaders = ['Date', 'HN', 'Surgeon', 'Procedure', 'IOL Type', 'Diagnosis', 'Laterality', 'Supervisor', 'Status', 'Notes'];
       const preopRows = state.preop.map(r => [
         r.date || '',
         r.HN || '',
         r.surgeon || '',
         r.procedure || '',
+        r.iolType || '',
         r.diagnosis || '',
         r.laterality || '',
         r.supervisor || '',
@@ -4190,6 +4237,9 @@
       if (state.sett.sups) {
         settingsRows.push(['Supervisors List', state.sett.sups.join(', '), 'Configured supervisor names']);
       }
+      if (state.sett.iolTypes) {
+        settingsRows.push(['IOL Types List', state.sett.iolTypes.join(', '), 'Configured IOL types']);
+      }
       xml += createWorksheet('Settings & Targets', settingsHeaders, settingsRows);
 
       xml += '\n</Workbook>';
@@ -4200,8 +4250,8 @@
 
     function exportORcsv() {
       const list = session.activeCasesTab === 'logged' ? state.orLog : state.preop;
-      const header = 'Date,HN,Fellow,Procedure,Diagnosis,Laterality,Supervisor,Notes\n';
-      const rows = list.map(r => `${r.date},${r.HN||''},${r.fellow||r.surgeon||''},"${r.procedure||''}","${r.diagnosis||''}",${r.laterality||''},${r.supervisor||''},"${r.notes||''}"`);
+      const header = 'Date,HN,Fellow,Procedure,IOL Type,Diagnosis,Laterality,Supervisor,Notes\n';
+      const rows = list.map(r => `${r.date},${r.HN||''},${r.fellow||r.surgeon||''},"${r.procedure||''}","${r.iolType||''}","${r.diagnosis||''}",${r.laterality||''},${r.supervisor||''},"${r.notes||''}"`);
       downloadFile(header + rows.join('\n'), `Fellowship_${session.activeCasesTab === 'logged' ? 'OR' : 'PreOp'}_${new Date().toISOString().slice(0,10)}.csv`, 'text/csv;charset=utf-8');
     }
 
@@ -4309,6 +4359,15 @@
               <div class="flex gap-2">
                 <input type="text" id="settings-new-diag" placeholder="Add diagnosis type..." class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
                 <button onclick="addDiagnosis()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all">Add</button>
+              </div>
+            </div>
+            <!-- IOL Types Preset Settings -->
+            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+              <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">🔬 IOL Types (Presets)</h3>
+              <div class="flex flex-wrap gap-2" id="settings-iol-list"></div>
+              <div class="flex gap-2">
+                <input type="text" id="settings-new-iol" placeholder="Add IOL type (e.g. Toric, CTR)..." class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                <button onclick="addIolType()" class="bg-teal-600 hover:bg-teal-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all">Add</button>
               </div>
             </div>
             <!-- Morning Activities -->
@@ -4429,6 +4488,14 @@
         </span>
       `).join('');
 
+      const iolDiv = document.getElementById('settings-iol-list');
+      if (iolDiv) iolDiv.innerHTML = (state.sett.iolTypes || []).map(t => `
+        <span class="flex items-center gap-1.5 bg-teal-955/40 border border-teal-900/30 text-teal-300 text-xs px-3 py-1 rounded-full font-medium">
+          ${t}
+          <button onclick="removeIolType('${t.replace(/'/g, "\\'")}')" class="text-teal-500 hover:text-teal-300 font-bold ml-1" aria-label="Remove IOL type">✕</button>
+        </span>
+      `).join('') || '<div class="text-xs text-slate-500 py-1">No IOL presets configured.</div>';
+
       if (maDiv) maDiv.innerHTML = (state.sett.maOpts || []).map(a => `
         <span class="flex items-center gap-1.5 bg-yellow-955/40 border border-yellow-800/30 text-yellow-300 text-xs px-3 py-1 rounded-full font-medium">
           ${a}
@@ -4510,6 +4577,26 @@
       if (confirm(`Remove diagnosis ${name}?`)) {
         if (!state.sett.diags) state.sett.diags = [...DIAGS];
         state.sett.diags = state.sett.diags.filter(d => d !== name);
+        saveState();
+        renderSettingsLists();
+      }
+    }
+
+    function addIolType() {
+      const input = document.getElementById('settings-new-iol');
+      const name = input.value.trim();
+      if (!state.sett.iolTypes) state.sett.iolTypes = [...(DEF_SETT.iolTypes || [])];
+      if (name && !state.sett.iolTypes.includes(name)) {
+        state.sett.iolTypes.push(name);
+        saveState();
+        renderSettingsLists();
+        input.value = '';
+      }
+    }
+    function removeIolType(name) {
+      if (confirm(`Remove IOL type "${name}"?`)) {
+        if (!state.sett.iolTypes) state.sett.iolTypes = [...(DEF_SETT.iolTypes || [])];
+        state.sett.iolTypes = state.sett.iolTypes.filter(t => t !== name);
         saveState();
         renderSettingsLists();
       }
