@@ -906,17 +906,18 @@
     const DEF_SETT = {
       lineWorkerUrl: '', ssLineId: '', mnLineId: '', morningNotifyTime: '06:00', eveningNotifyTime: '20:00', appPassword: '',
       targets: { Trabeculectomy: 20, 'Ahmed Valve': 10, 'MIGS–iStent': 5, CPC: 10, SLT: 20, 'YAG PI': 15 },
-      sups: ['กุลวรรณ', 'นพคุณ', 'สุพัตรา', 'อรอร', 'ดวงดาว', 'เพ็ญพรรณ'],
+      sups: ['กุลวรรณ', 'นพคุณ', 'สุพัตรา', 'อรอร', 'ดวงดาว', 'เพ็ญพรรณ', 'ปิติพงศ์'],
       maOpts: ['Morning Report', 'Photo Quiz', 'Journal Club', 'Case Discussion', 'Grand Round', 'Interesting Case', 'M&M Conference', 'Laser Teaching'],
       procs: ['Trabeculectomy', 'Ahmed Valve', 'MIGS–iStent', 'MIGS–KDB Goniotomy', 'CPC', 'Bleb Revision', 'Needling+5FU', 'PE c IOL', 'Phaco+Trab', 'SLT', 'YAG PI', 'ALT', '5-FU Injection', 'GATT', 'ECP'],
       diags: ['POAG', 'PACG', 'NTG', 'PXG', 'Neovascular GLC', 'Uveitic GLC', 'Steroid GLC', 'Traumatic GLC', 'Secondary GLC', 'OHT', 'GLC Suspect', 'Congenital GLC'],
       iolTypes: ['Monofocal (Alcon SN60WF)', 'Monofocal (TECNIS)', 'Monofocal (Bausch PCB00)', 'Aspheric IQ (AcrySof)', 'Toric IOL', 'EDOF (AT LARA)', 'Multifocal (PanOptix)', 'CTR', 'Sulcus (PMMA)'],
-      morningActSched: ['Morning Report', 'Photo Quiz', 'Journal Club', 'Case Discussion', 'Grand Round'],
+      morningActSched: ['Photo Quiz', 'Interesting Case', 'Glaucoma conference', 'Topic review', 'Grand Round'],
       acts: [
         { name: 'OPD', clinical: true },
         { name: 'OR', clinical: true },
         { name: 'Clinic', clinical: true },
         { name: 'Laser', clinical: true },
+        { name: 'รพ.เด็ก', clinical: true },
         { name: 'Research', clinical: false },
         { name: 'JC', clinical: false },
         { name: 'Lecture', clinical: false },
@@ -1268,7 +1269,7 @@
         state.preop = snap.preop || [];
         state.academicLog = snap.academic || [];
       }
-      saveState();
+      saveState('logbook', 'preop');
     }
 
     // ── END BACKUP ENGINE ───────────────────────────────────────────────────
@@ -1304,12 +1305,17 @@
               const data = snap.data();
 
               if (docId === 'settings') {
-                if (data && Object.keys(data).length > 0) {
+                // Guard: only apply if Firestore returned real settings (>=5 keys).
+                // An empty or near-empty doc means Firestore hasn't loaded yet;
+                // don't let stale in-memory DEF_SETT get written back.
+                const fsSettKeys = data ? Object.keys(data).length : 0;
+                if (fsSettKeys >= 5) {
                   state.sett = { ...DEF_SETT, ...data };
                   if (!state.sett.iolTypes || state.sett.iolTypes.length === 0) {
                     state.sett.iolTypes = [...DEF_SETT.iolTypes];
                   }
-                } else if (!initialLoadDone) {
+                } else if (!initialLoadDone && fsSettKeys === 0) {
+                  // Truly empty doc — only then bootstrap from local state
                   writeDocToFirestore(docId);
                 }
               } else if (docId === 'schedule') {
@@ -1444,27 +1450,36 @@
 
     // Debounce timer for backup (avoid writing snapshot on every keystroke)
     let _backupDebounceTimer = null;
-    function saveState() {
+    function saveState(...targets) {
+      // Targeted save: pass doc ids to save only those docs.
+      // If no targets given, falls back to saving ALL (legacy behaviour — only
+      // used by restoreFromSnapshot and a small number of explicit full-save
+      // callers).  All normal user-action callers MUST pass specific targets
+      // so that a stale in-memory state.sett / state.call can never silently
+      // overwrite a correctly-loaded Firestore document.
+      const all = targets.length === 0;
+      const save = (id) => all || targets.includes(id);
+
       // Local Storage Cache
       try {
-        localStorage.setItem(dbKey('settings'), JSON.stringify(state.sett));
-        localStorage.setItem(dbKey('schedule'), JSON.stringify({ rotPats: state.rotPats, mr: state.mr }));
-        localStorage.setItem(dbKey('oncall'), JSON.stringify({ call: state.call, offDuty: state.offDuty }));
-        localStorage.setItem(dbKey('logbook'), JSON.stringify({ entries: state.orLog, academic: state.academicLog || [] }));
-        localStorage.setItem(dbKey('preop'), JSON.stringify({ entries: state.preop }));
-        localStorage.setItem(dbKey('study'), JSON.stringify({ cards: state.study || [] }));
+        if (save('settings')) localStorage.setItem(dbKey('settings'), JSON.stringify(state.sett));
+        if (save('schedule')) localStorage.setItem(dbKey('schedule'), JSON.stringify({ rotPats: state.rotPats, mr: state.mr }));
+        if (save('oncall'))   localStorage.setItem(dbKey('oncall'),   JSON.stringify({ call: state.call, offDuty: state.offDuty }));
+        if (save('logbook'))  localStorage.setItem(dbKey('logbook'),  JSON.stringify({ entries: state.orLog, academic: state.academicLog || [] }));
+        if (save('preop'))    localStorage.setItem(dbKey('preop'),    JSON.stringify({ entries: state.preop }));
+        if (save('study'))    localStorage.setItem(dbKey('study'),    JSON.stringify({ cards: state.study || [] }));
       } catch (e) {
         console.warn("Local storage cache write failed:", e);
       }
-      
+
       // Firestore Sync
       if (isOnlineDB) {
-        writeDocToFirestore('settings');
-        writeDocToFirestore('schedule');
-        writeDocToFirestore('oncall');
-        writeDocToFirestore('logbook');
-        writeDocToFirestore('preop');
-        writeDocToFirestore('study');
+        if (save('settings')) writeDocToFirestore('settings');
+        if (save('schedule')) writeDocToFirestore('schedule');
+        if (save('oncall'))   writeDocToFirestore('oncall');
+        if (save('logbook'))  writeDocToFirestore('logbook');
+        if (save('preop'))    writeDocToFirestore('preop');
+        if (save('study'))    writeDocToFirestore('study');
       }
 
       // ── BACKUP LAYERS ─────────────────────────────────────
@@ -2289,8 +2304,9 @@
     
     window.deleteAcademicFromSummary = function(id) {
       if (!confirm("Are you sure you want to delete this academic log entry?")) return;
+      markIdDeleted(id);
       state.academicLog = state.academicLog.filter(e => e.id !== id);
-      saveState();
+      saveState('logbook');
       renderActiveTab();
     };
 
@@ -2595,7 +2611,7 @@
       const sched = [...(state.sett.morningActSched || ['','','','',''])];
       sched[di] = val;
       state.sett.morningActSched = sched;
-      saveState();
+      saveState('settings');
       renderActiveTab();
     }
 
@@ -2632,7 +2648,7 @@
         }
       }
       
-      saveState();
+      saveState('schedule');
       renderActiveTab();
     }
 
@@ -2766,7 +2782,7 @@
         }
       }
       
-      saveState();
+      saveState('schedule');
     }
     function openCellModal(mKey, slot, di) {
       const cell = state.mr[mKey]?.[slot]?.[di] || emptyCell();
@@ -3097,7 +3113,7 @@
     window.deleteOffDutyBooking = function(ds) {
       if (confirm(`Are you sure you want to delete the off-duty booking for ${ds}?`)) {
         delete state.offDuty[ds];
-        saveState();
+        saveState('oncall');
         renderActiveTab();
       }
     };
@@ -3142,7 +3158,7 @@
       } else {
         delete state.call[ds];
       }
-      saveState();
+      saveState('oncall');
       renderActiveTab();
     }
 
@@ -3168,7 +3184,7 @@
         if (state.call[dt] === fel) {
           delete state.call[dt];
         }
-        saveState();
+        saveState('oncall');
         closeOffDutyModal();
         renderActiveTab();
       }
@@ -3217,7 +3233,7 @@
           }
         }
         
-        saveState();
+        saveState('oncall');
         renderActiveTab();
       }
     }
@@ -3267,7 +3283,7 @@
       entry.status = entry.status === 'Confirmed' ? 'Scheduled' : 'Confirmed';
       entry.readyForSurgery = (entry.status === 'Confirmed');
       
-      saveState();
+      saveState('preop');
       renderActiveTab();
     };
 
@@ -3294,7 +3310,7 @@
       // Remove from Pre-Op list
       state.preop = state.preop.filter(e => e.id !== preOpId);
 
-      saveState();
+      saveState('logbook', 'preop');
       renderActiveTab();
     };
 
@@ -3952,7 +3968,7 @@
         state.academicLog.push(entry);
       }
       
-      saveState();
+      saveState('logbook');
       closeAcademicModal();
       renderActiveTab();
     }
@@ -3976,7 +3992,7 @@
       if (!confirm('Are you sure you want to delete this presentation log?')) return;
       markIdDeleted(id);
       state.academicLog = state.academicLog.filter(e => e.id !== id);
-      saveState();
+      saveState('logbook');
       renderActiveTab();
     }
 
@@ -4150,7 +4166,7 @@
         }
       }
 
-      saveState();
+      saveState('logbook', 'preop');
       closeCaseModal();
       renderActiveTab();
     }
@@ -4199,7 +4215,7 @@
         markIdDeleted(id);
         state.orLog = state.orLog.filter(e => e.id !== id);
         state.preop = state.preop.filter(e => e.id !== id);
-        saveState();
+        saveState('logbook', 'preop');
         renderActiveTab();
       }
     }
@@ -4704,7 +4720,7 @@
       const name = input.value.trim();
       if (name && !state.sett.sups.includes(name)) {
         state.sett.sups.push(name);
-        saveState();
+        saveState('settings');
         renderSettingsLists();
         input.value = '';
       }
@@ -4712,7 +4728,7 @@
     function removeSupervisor(name) {
       if (confirm(`Remove supervisor ${name}?`)) {
         state.sett.sups = state.sett.sups.filter(s => s !== name);
-        saveState();
+        saveState('settings');
         renderSettingsLists();
       }
     }
@@ -4722,7 +4738,7 @@
       const name = input.value.trim();
       if (name && !state.sett.procs.includes(name)) {
         state.sett.procs.push(name);
-        saveState();
+        saveState('settings');
         renderSettingsLists();
         input.value = '';
       }
@@ -4730,7 +4746,7 @@
     function removeProcedure(name) {
       if (confirm(`Remove procedure ${name}?`)) {
         state.sett.procs = state.sett.procs.filter(p => p !== name);
-        saveState();
+        saveState('settings');
         renderSettingsLists();
       }
     }
@@ -4741,7 +4757,7 @@
       if (!state.sett.diags) state.sett.diags = [...DIAGS];
       if (name && !state.sett.diags.includes(name)) {
         state.sett.diags.push(name);
-        saveState();
+        saveState('settings');
         renderSettingsLists();
         input.value = '';
       }
@@ -4750,7 +4766,7 @@
       if (confirm(`Remove diagnosis ${name}?`)) {
         if (!state.sett.diags) state.sett.diags = [...DIAGS];
         state.sett.diags = state.sett.diags.filter(d => d !== name);
-        saveState();
+        saveState('settings');
         renderSettingsLists();
       }
     }
@@ -4761,7 +4777,7 @@
       if (!state.sett.iolTypes) state.sett.iolTypes = [...(DEF_SETT.iolTypes || [])];
       if (name && !state.sett.iolTypes.includes(name)) {
         state.sett.iolTypes.push(name);
-        saveState();
+        saveState('settings');
         renderSettingsLists();
         input.value = '';
       }
@@ -4770,7 +4786,7 @@
       if (confirm(`Remove IOL type "${name}"?`)) {
         if (!state.sett.iolTypes) state.sett.iolTypes = [...(DEF_SETT.iolTypes || [])];
         state.sett.iolTypes = state.sett.iolTypes.filter(t => t !== name);
-        saveState();
+        saveState('settings');
         renderSettingsLists();
       }
     }
@@ -4787,7 +4803,7 @@
           name: name,
           clinical: clinicalInput.checked
         });
-        saveState();
+        saveState('settings');
         renderSettingsLists();
         input.value = '';
         clinicalInput.checked = false;
@@ -4799,7 +4815,7 @@
     function removeRotationActivity(name) {
       if (confirm(`Are you sure you want to remove the activity "${name}"?`)) {
         state.sett.acts = (state.sett.acts || []).filter(a => a.name !== name);
-        saveState();
+        saveState('settings');
         renderSettingsLists();
       }
     }
@@ -4811,7 +4827,7 @@
         }
         return a;
       });
-      saveState();
+      saveState('settings');
       renderSettingsLists();
     }
 
@@ -4820,14 +4836,14 @@
       const name = input.value.trim();
       if (name && !(state.sett.maOpts || []).includes(name)) {
         state.sett.maOpts = [...(state.sett.maOpts || []), name];
-        saveState();
+        saveState('settings');
         renderSettingsLists();
         input.value = '';
       }
     }
     function removeMorningActivity(name) {
       state.sett.maOpts = (state.sett.maOpts || []).filter(a => a !== name);
-      saveState();
+      saveState('settings');
       renderSettingsLists();
     }
 
@@ -4836,19 +4852,19 @@
       const n = parseInt(document.getElementById('settings-new-tgt-n').value) || 10;
       if (proc) {
         state.sett.targets = { ...(state.sett.targets || {}), [proc]: n };
-        saveState();
+        saveState('settings');
         renderSettingsLists();
       }
     }
     function updateTarget(proc, val) {
       state.sett.targets = { ...(state.sett.targets || {}), [proc]: parseInt(val) || 1 };
-      saveState();
+      saveState('settings');
     }
     function removeTarget(proc) {
       const t = { ...(state.sett.targets || {}) };
       delete t[proc];
       state.sett.targets = t;
-      saveState();
+      saveState('settings');
       renderSettingsLists();
     }
 
@@ -4856,7 +4872,7 @@
       state.sett.lineWorkerUrl = (document.getElementById('settings-line-url').value || '').trim();
       state.sett.ssLineId = (document.getElementById('settings-line-ss').value || '').trim();
       state.sett.mnLineId = (document.getElementById('settings-line-mn').value || '').trim();
-      saveState();
+      saveState('settings');
       alert('✅ LINE settings saved!');
     }
 
@@ -4867,7 +4883,7 @@
       if (p1 !== p2) { alert('Passcodes do not match'); return; }
       
       state.sett.appPassword = p1;
-      saveState();
+      saveState('settings');
       alert('✅ Administrative passcode updated!');
       renderActiveTab();
     }
@@ -4876,7 +4892,7 @@
       if (confirm('Disable administrative password protection? All tabs will be open.')) {
         state.sett.appPassword = '';
         session.unlocked = false;
-        saveState();
+        saveState('settings');
         renderActiveTab();
       }
     }
@@ -5020,7 +5036,7 @@
           console.warn("Local recovery check failed on " + docId, e);
         }
       });
-      saveState();
+      saveState('schedule');
       alert(`✅ Device Recovery Complete!\nRecovered ${recoveredCount} additional local cases. All data merged and synced.`);
       renderActiveTab();
     }
@@ -5052,7 +5068,7 @@
             state.study = merged;
           }
 
-          saveState();
+          saveState('schedule');
           alert('✅ Database imported and merged successfully!');
           renderActiveTab();
         } catch (err) {
@@ -5075,7 +5091,7 @@
           orLog: [],
           preop: []
         };
-        saveState();
+        saveState('schedule');
         alert('Database reset successful.');
         renderActiveTab();
       }
@@ -5748,7 +5764,7 @@
     window.deleteStudyCard = function(id) {
       if (!confirm("Are you sure you want to delete this study note flashcard?")) return;
       state.study = state.study.filter(e => e.id !== id);
-      saveState();
+      saveState('study');
       renderActiveTab();
     };
 
@@ -5807,7 +5823,7 @@
           image: ""
         });
       }
-      saveState();
+      saveState('study');
       closeStudyCardModal();
       renderActiveTab();
     };

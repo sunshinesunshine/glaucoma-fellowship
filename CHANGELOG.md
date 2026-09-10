@@ -2,6 +2,27 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## 🛡️ [v6.3.1] - 2026-09-10 — *Targeted saveState(), Settings Overwrite Protection & Data Recovery*
+
+### 🔒 Root-Cause Fix: Targeted Document Saves
+- **`saveState(...targets)` refactor**: `saveState()` now accepts specific Firestore document IDs. Every caller passes only the documents it modifies (`'settings'`, `'oncall'`, `'logbook'`, `'preop'`, `'schedule'`, `'study'`). This eliminates the race condition where opening the app on a clean device triggered `saveState()` before Firestore loaded, overwriting cloud settings/on-call with stale DEF_SETT defaults.
+- **40+ callers updated**: All save sites are now targeted — e.g. toggling an on-call day only writes `oncall`, adding a supervisor only writes `settings`, editing a case only writes `logbook`+`preop`.
+
+### 🛡️ Settings onSnapshot Guard
+- **Minimum-key validation**: The `settings` onSnapshot handler now requires ≥5 keys from Firestore before applying remote data. Truly empty docs (0 keys) trigger a one-time bootstrap write; docs with partial data are ignored, preventing defaults from leaking into cloud storage.
+
+### 🔄 Data Restoration (Firestore)
+- **On-Call**: Restored 365 on-call dates from Share Token `699rrt` (created 2026-08-16), overwriting the corrupted schedule.
+- **Settings**: Restored `morningActSched` → Glaucoma-specific sequence (Photo Quiz, Interesting Case, Glaucoma conference, Topic review, Grand Round), `appPassword` → `123`, supervisor `ปิติพงศ์`, and activity `รพ.เด็ก` (clinical).
+
+### 📝 DEF_SETT Updated
+- **Hardcoded defaults corrected**: `DEF_SETT.morningActSched` now matches the Glaucoma Fellowship schedule; `ปิติพงศ์` added to `sups`; `รพ.เด็ก` (clinical) added to `acts`. Future resets always start from the correct base values.
+
+### 🗑️ deleteAcademicFromSummary Tombstone Fix
+- Added `markIdDeleted(id)` call in `deleteAcademicFromSummary` (was missing, causing ghost entries after sync).
+
+---
+
 ## 🚀 [v6.3.0] - 2026-08-17 — *Competency Targets Summary, Dynamic Today Month, Pre-Op OR Clean-Up, Deletion Tombstones & Time-Scoped Case Filters*
 
 ### ⚕️ Case Volume Summary & Competency Targets
