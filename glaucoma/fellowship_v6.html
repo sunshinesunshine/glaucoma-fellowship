@@ -2370,7 +2370,7 @@
       
       const wr = state.mr[mKey] || { amTemplate: 'none', pmTemplate: 'none', am: emptyRow(), pm: emptyRow() };
       
-      const sDays = mkCalDays(session.sMi);
+      const sDays = mkRotCalDays(session.sMi);
       const matches = [];
       const query = session.rotSearchAct || '';
       
@@ -2525,8 +2525,6 @@
                   return `<div class="aspect-[4/3] bg-slate-900/10 rounded-xl opacity-30 border border-transparent"></div>`;
                 }
                 const d = date.getDate(), dow = date.getDay();
-                const isWk = dow === 0 || dow === 6;
-                if (isWk) return '';
                 
                 const hol = isHol(y, m, d);
                 const cell = resolveCell(state.mr, activeFel, y, m, date);
@@ -2537,17 +2535,20 @@
                 const queryMatch = query && (amAct === query || pmAct === query);
                 const dateKey = dStr(date);
                 const dayAcads = (state.academicLog || []).filter(e => e.date === dateKey && e.fellow === activeFel);
+                const isToday = dateKey === dStr(new Date());
                 
                 return `
                   <div class="p-2 rounded-xl flex flex-col justify-between border min-h-[72px] relative transition-all ${
-                    queryMatch 
-                      ? 'border-amber-500 bg-amber-500/10' 
-                      : hol 
-                        ? 'border-pink-900/30 bg-pink-955/10 text-pink-400' 
-                        : 'border-white/5 bg-slate-900/40'
+                    isToday
+                      ? 'border-blue-500 bg-blue-950/20 ring-1 ring-blue-500/50'
+                      : queryMatch 
+                        ? 'border-amber-500 bg-amber-500/10' 
+                        : hol 
+                          ? 'border-pink-900/30 bg-pink-955/10 text-pink-400' 
+                          : 'border-white/5 bg-slate-900/40'
                   }">
                     <div class="flex justify-between items-center w-full">
-                      <span class="text-[10px] font-bold ${hol ? 'text-pink-400' : 'text-slate-350'}">${d}</span>
+                      <span class="text-[10px] font-bold ${isToday ? 'text-white bg-blue-500 rounded-full w-4 h-4 flex items-center justify-center text-[9px]' : hol ? 'text-pink-400' : 'text-slate-350'}">${d}</span>
                       ${hol ? `<span class="text-[7px] text-pink-400 truncate max-w-[40px] font-medium" title="${TH_HOL[hk(y,m,d)]}">${TH_HOL[hk(y,m,d)]}</span>` : ''}
                     </div>
                     ${hol ? `
@@ -5839,6 +5840,36 @@
       const lead = f.getDay() === 0 ? 6 : f.getDay() - 1;
       for (let i = 0; i < lead; i++) d.push(null);
       for (let n = 1; n <= new Date(y, m + 1, 0).getDate(); n++) d.push(new Date(y, m, n));
+      return d;
+    }
+
+    // 5-Day (Mon–Fri) calendar builder specifically for Monthly Rotation Calendar
+    function mkRotCalDays(mi) {
+      const { y, m } = MONTHS[mi]; 
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const f = new Date(y, m, 1);
+      const jsDay = f.getDay(); // 0=Sun, 1=Mon..5=Fri, 6=Sat
+      
+      // In a 5-day week (Mon=0, Tue=1, Wed=2, Thu=3, Fri=4):
+      // If 1st is Mon..Fri, leading empty slots before the 1st: Mon->0, Tue->1, Wed->2, Thu->3, Fri->4
+      // If 1st is Sat or Sun, the first working day of the month is Monday (Day 2 or Day 3), lead = 0
+      const lead = (jsDay >= 1 && jsDay <= 5) ? (jsDay - 1) : 0;
+      const d = [];
+      for (let i = 0; i < lead; i++) d.push(null);
+      
+      for (let n = 1; n <= daysInMonth; n++) {
+        const dt = new Date(y, m, n);
+        const dow = dt.getDay();
+        if (dow >= 1 && dow <= 5) {
+          d.push(dt);
+        }
+      }
+      
+      // Trailing empty slots to complete the last 5-day row
+      const rem = d.length % 5;
+      if (rem > 0) {
+        for (let i = 0; i < (5 - rem); i++) d.push(null);
+      }
       return d;
     }
 

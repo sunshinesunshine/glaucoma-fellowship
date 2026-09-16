@@ -2,6 +2,15 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## 📅 [v6.3.2] - 2026-09-16 — *Monthly Rotation Calendar Date Alignment Fix*
+
+### 🗓️ 5-Day Calendar Date Alignment
+- **Dedicated `mkRotCalDays(mi)`**: Fixed date misalignment in the **Monthly Rotation Calendar** (Rotation tab). Previously, it reused `mkCalDays(mi)` (which generates 7-column day slots). When a month started on a weekend (e.g. Sunday in Nov 2026, or Saturday in Aug 2026 / May 2027), 6 null placeholders overflowed across the 5-column (`grid-cols-5`) grid, shifting every weekday of the month by 1 column (e.g., Nov 2 Monday was shown under Tuesday, and Nov 6 Friday under Monday).
+- **Zero-Shift 5-Day Algorithm**: `mkRotCalDays(mi)` creates exact Mon–Fri slots with correct leading empty slots (Mon=0..Fri=4, and 0 if month starts on weekend) and trailing padding. Every date is mathematically guaranteed to render in its true day-of-week column.
+- **Today Highlight**: Added visual highlighting (`isToday`) to the current day in the Monthly Rotation Calendar.
+
+---
+
 ## 🛡️ [v6.3.1] - 2026-09-10 — *Targeted saveState(), Settings Overwrite Protection & Data Recovery*
 
 ### 🔒 Root-Cause Fix: Targeted Document Saves
