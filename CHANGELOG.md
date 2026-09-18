@@ -13,8 +13,8 @@ All notable changes, architectural milestones, and core function evolutions of t
 ### 🔄 Data Restoration & Integrity
 - **On-Call Schedule Restored**: Restored complete 365-day schedule from active share snapshot `o7jof6` (captured 2026-09-12 with genuine alternating weekly schedule: Sep 1–6 SS, Sep 7–13 MN, Sep 14–20 SS, Sep 21–27 MN, Sep 28–30 SS), replacing accidental rollback to outdated August schedule.
 - **Clinical Settings Locked**: Re-established 9 Faculty Supervisors (`กุลวรรณ`, `นพคุณ`, `สุพัตรา`, `อรอร`, `ดวงดาว`, `เพ็ญพรรณ`, `ปิติพงศ์`, `แพรวไพลิน`, `Fellow`), 14 Surgical Procedures, 3 IOL Presets (`GCB00v`, `SA60WF`, `AU00T`), 13 Diagnoses, 8 Activities, and clinical targets (`PE c IOL`: 30, `Tx c MMC`: 20, `Ahmed GDD`: 10, etc.). App password locked to `1234`.
-- **Logbook Restored**: Restored missing case `c_npahiwg` (HN: 68009474, 2026-07-02, PE c IOL, Diag: OHT, Sup: เพ็ญพรรณ). Total case log count verified at 78 cases.
-- **Cloud Backup Security Rule Enabled**: Added Firestore security rule for `gf_v6_backups` to allow daily automated system backups to write to cloud storage without permission denial. Verified cloud backup snapshot created at `gf_v6_backups/2026-09-18`.
+- **Logbook Restored & Synchronized from CSV**: Restored missing case `c_npahiwg` and synchronized full operative records with `Fellowship_OR_2026-09-16.csv`. Ingested 5 newly logged operative cases for September (HN: 69015806, 69018470, 58008685, 60008129, 64044225), resolved HN placeholders (`พิภพ เนียบแก้ว` → `68013187`, `-` → `69019972`, `1` → `69019346`), normalized nomenclature (`Trabeculectomy` → `Tx c MMC`, `Ahmed Valve` → `Ahmed GDD`, `Neovascular GLC` → `NVG`), and updated all surgical notes and IOL models. Total operative case log now verified at **84 cases** (SS: 83, MN: 1).
+- **Cloud Backup Security Rule Enabled**: Added Firestore security rule for `gf_v6_backups` to allow daily automated system backups to write to cloud storage without permission denial. Verified cloud backup snapshot created and updated at `gf_v6_backups/2026-09-18`.
 
 ---
 
