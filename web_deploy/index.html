@@ -904,24 +904,42 @@
     const LOCKED_TABS = [];
 
     const DEF_SETT = {
-      lineWorkerUrl: '', ssLineId: '', mnLineId: '', morningNotifyTime: '06:00', eveningNotifyTime: '20:00', appPassword: '',
-      targets: { Trabeculectomy: 20, 'Ahmed Valve': 10, 'MIGS–iStent': 5, CPC: 10, SLT: 20, 'YAG PI': 15 },
-      sups: ['กุลวรรณ', 'นพคุณ', 'สุพัตรา', 'อรอร', 'ดวงดาว', 'เพ็ญพรรณ', 'ปิติพงศ์'],
+      lineWorkerUrl: '', ssLineId: '', mnLineId: '', morningNotifyTime: '06:00', eveningNotifyTime: '20:00', appPassword: '1234',
+      targets: {
+        'PE c IOL': 30,
+        'Tx c MMC': 20,
+        'Ahmed GDD': 10,
+        'AADI GDD': 5,
+        'Preserflo c MMC': 5,
+        'Revision Bleb': 10,
+        'Needling + 5FU': 10,
+        'Goniotomy': 5,
+        'GSL': 5,
+        'Surgical PI': 5,
+        'Reform A/C': 5
+      },
+      sups: ['กุลวรรณ', 'นพคุณ', 'สุพัตรา', 'อรอร', 'ดวงดาว', 'เพ็ญพรรณ', 'ปิติพงศ์', 'แพรวไพลิน', 'Fellow'],
       maOpts: ['Morning Report', 'Photo Quiz', 'Journal Club', 'Case Discussion', 'Grand Round', 'Interesting Case', 'M&M Conference', 'Laser Teaching'],
-      procs: ['Trabeculectomy', 'Ahmed Valve', 'MIGS–iStent', 'MIGS–KDB Goniotomy', 'CPC', 'Bleb Revision', 'Needling+5FU', 'PE c IOL', 'Phaco+Trab', 'SLT', 'YAG PI', 'ALT', '5-FU Injection', 'GATT', 'ECP'],
-      diags: ['POAG', 'PACG', 'NTG', 'PXG', 'Neovascular GLC', 'Uveitic GLC', 'Steroid GLC', 'Traumatic GLC', 'Secondary GLC', 'OHT', 'GLC Suspect', 'Congenital GLC'],
-      iolTypes: ['Monofocal (Alcon SN60WF)', 'Monofocal (TECNIS)', 'Monofocal (Bausch PCB00)', 'Aspheric IQ (AcrySof)', 'Toric IOL', 'EDOF (AT LARA)', 'Multifocal (PanOptix)', 'CTR', 'Sulcus (PMMA)'],
+      procs: [
+        'PE c IOL', 'Ahmed GDD', 'GSL', 'Tx c MMC', 'Revision Bleb', 'Reform A/C',
+        'Goniotomy', 'Lysis synechia', 'Needling + 5FU', 'Surgical PI', 'ECCE', 'ICCE',
+        'AADI GDD', 'Preserflo c MMC'
+      ],
+      diags: [
+        'SC', 'POAG', 'NVG', 'SOAG', 'AACC', 'PACG', 'Phacolytic', 'Phacomorphic',
+        'Fail Tx', 'Expose GDD', 'Wound leak', 'Overdrain', 'JOAG'
+      ],
+      iolTypes: ['GCB00v', 'SA60WF', 'AU00T'],
       morningActSched: ['Photo Quiz', 'Interesting Case', 'Glaucoma conference', 'Topic review', 'Grand Round'],
       acts: [
         { name: 'OPD', clinical: true },
         { name: 'OR', clinical: true },
         { name: 'Clinic', clinical: true },
-        { name: 'Laser', clinical: true },
-        { name: 'รพ.เด็ก', clinical: true },
+        { name: 'Laser', clinical: false },
+        { name: 'รพ.เด็ก', clinical: false },
         { name: 'Research', clinical: false },
         { name: 'JC', clinical: false },
-        { name: 'Lecture', clinical: false },
-        { name: 'Self-study', clinical: false }
+        { name: 'Lecture', clinical: false }
       ]
     };
 
@@ -1027,6 +1045,7 @@
     // Firebase Initializer
     let db = null;
     let isOnlineDB = false;
+    let initialLoadDone = false;
     let DB_MODE = 'live';
 
     const firebaseConfig = {
@@ -1135,6 +1154,13 @@
         const set = getDeletedIds();
         set.add(id);
         localStorage.setItem(DEL_KEY, JSON.stringify(Array.from(set).slice(-500)));
+        // Sync tombstone to Firestore so other devices will NOT resurrect this case
+        if (isOnlineDB && db) {
+          db.collection(COL).doc('tombstones').set({
+            ids: firebase.firestore.FieldValue.arrayUnion(id),
+            updatedAt: new Date().toISOString()
+          }, { merge: true }).catch(err => console.warn('[Tombstone] Cloud sync error:', err));
+        }
       } catch(e) {}
     }
 
@@ -1284,10 +1310,9 @@
       if (!isOnlineDB) return;
 
       // 3. Set up Firestore real-time listeners — each update re-renders the active tab
-      const docs = ['settings', 'schedule', 'oncall', 'logbook', 'preop', 'study'];
+      const docs = ['tombstones', 'settings', 'schedule', 'oncall', 'logbook', 'preop', 'study'];
       let loadedDocs = 0;
       const totalDocs = docs.length;
-      let initialLoadDone = false;
 
       // Timeout fallback: if Firestore doesn't respond in 10s, mark as done
       const fallbackTimer = setTimeout(() => {
@@ -1304,7 +1329,27 @@
             if (snap.exists) {
               const data = snap.data();
 
-              if (docId === 'settings') {
+              if (docId === 'tombstones') {
+                // Cloud-synchronized tombstones: sync across all devices to prevent resurrection
+                const cloudTombIds = data.ids || [];
+                if (Array.isArray(cloudTombIds) && cloudTombIds.length > 0) {
+                  const localSet = getDeletedIds();
+                  let changed = false;
+                  cloudTombIds.forEach(id => {
+                    if (!localSet.has(id)) {
+                      localSet.add(id);
+                      changed = true;
+                    }
+                  });
+                  if (changed) {
+                    localStorage.setItem(DEL_KEY, JSON.stringify(Array.from(localSet).slice(-500)));
+                    state.orLog = state.orLog.filter(e => !localSet.has(e.id));
+                    state.academicLog = state.academicLog.filter(e => !localSet.has(e.id));
+                    state.preop = state.preop.filter(e => !localSet.has(e.id));
+                    state.study = state.study.filter(e => !localSet.has(e.id));
+                  }
+                }
+              } else if (docId === 'settings') {
                 // Guard: only apply if Firestore returned real settings (>=5 keys).
                 // An empty or near-empty doc means Firestore hasn't loaded yet;
                 // don't let stale in-memory DEF_SETT get written back.
@@ -1313,6 +1358,9 @@
                   state.sett = { ...DEF_SETT, ...data };
                   if (!state.sett.iolTypes || state.sett.iolTypes.length === 0) {
                     state.sett.iolTypes = [...DEF_SETT.iolTypes];
+                  }
+                  if (!state.sett.targets || Object.keys(state.sett.targets).length === 0) {
+                    state.sett.targets = { ...DEF_SETT.targets };
                   }
                 } else if (!initialLoadDone && fsSettKeys === 0) {
                   // Truly empty doc — only then bootstrap from local state
@@ -1333,9 +1381,10 @@
                 const localHasData = state.call && Object.keys(state.call).length > 0;
                 if (!fsHasData && localHasData && !initialLoadDone) {
                   writeDocToFirestore(docId);
-                } else {
-                  state.call = { ...(data.call || {}), ...(state.call || {}) };
-                  state.offDuty = { ...(data.offDuty || {}), ...(state.offDuty || {}) };
+                } else if (fsHasData) {
+                  // REMOTE WINS: remote cloud data is authoritative over local cache!
+                  state.call = { ...(state.call || {}), ...(data.call || {}) };
+                  state.offDuty = { ...(state.offDuty || {}), ...(data.offDuty || {}) };
                 }
               } else if (docId === 'logbook') {
                 const delIds = getDeletedIds();
@@ -1472,14 +1521,18 @@
         console.warn("Local storage cache write failed:", e);
       }
 
-      // Firestore Sync
+      // Firestore Sync: Guard against writing before initial cloud load is complete
       if (isOnlineDB) {
-        if (save('settings')) writeDocToFirestore('settings');
-        if (save('schedule')) writeDocToFirestore('schedule');
-        if (save('oncall'))   writeDocToFirestore('oncall');
-        if (save('logbook'))  writeDocToFirestore('logbook');
-        if (save('preop'))    writeDocToFirestore('preop');
-        if (save('study'))    writeDocToFirestore('study');
+        if (!initialLoadDone) {
+          console.warn('[SaveState] Skipped remote write because initial load is in progress');
+        } else {
+          if (save('settings')) writeDocToFirestore('settings');
+          if (save('schedule')) writeDocToFirestore('schedule');
+          if (save('oncall'))   writeDocToFirestore('oncall');
+          if (save('logbook'))  writeDocToFirestore('logbook');
+          if (save('preop'))    writeDocToFirestore('preop');
+          if (save('study'))    writeDocToFirestore('study');
+        }
       }
 
       // ── BACKUP LAYERS ─────────────────────────────────────

@@ -2,6 +2,22 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## 🛡️ [v6.3.3] - 2026-09-18 — *Anti-Flip-Flop Architecture, Cloud Tombstones, On-Call & Settings Recovery*
+
+### 🛡️ Anti-Flip-Flop Architecture & Cloud Tombstones
+- **Cloud-Synchronized Tombstones (`gf_v6/tombstones`)**: Previously, deleted entry IDs (`gf_deleted_ids`) were stored only in the browser's local cache. When another device opened the app, `mergeEntries()` perceived the missing items as offline uncommitted additions and resurrected them back into Firestore ("zombie cases"). Now, tombstones are synced to a dedicated Firestore document `gf_v6/tombstones` and listened to via real-time `onSnapshot`. Deleting an item on any device permanently expels it across all devices.
+- **Strict Remote Authority on On-Call**: Fixed critical merge precedence order in `initOnlineSync()`. Replaced local-first shallow merge with remote-first merge (`state.call = { ...(state.call || {}), ...(data.call || {}) }`), preventing devices with stale local storage from overwriting current cloud on-call rosters upon connection.
+- **Initial Cloud Load Gate**: Declared `initialLoadDone` in top-level app state and guarded `saveState()` to abort remote writes before initial cloud documents are resolved, completely stopping race conditions on startup.
+- **Hardcoded `DEF_SETT` Synchronized**: Aligned in-code `DEF_SETT` with 100% of current clinical configurations (9 supervisors, 14 procedures, 3 IOL presets, 13 diagnoses, 8 activities, exact case targets). Even if cache is cleared, the app boots into the correct clinical environment.
+
+### 🔄 Data Restoration & Integrity
+- **On-Call Schedule Restored**: Restored complete 365-day schedule from active share snapshot `o7jof6` (captured 2026-09-12 with genuine alternating weekly schedule: Sep 1–6 SS, Sep 7–13 MN, Sep 14–20 SS, Sep 21–27 MN, Sep 28–30 SS), replacing accidental rollback to outdated August schedule.
+- **Clinical Settings Locked**: Re-established 9 Faculty Supervisors (`กุลวรรณ`, `นพคุณ`, `สุพัตรา`, `อรอร`, `ดวงดาว`, `เพ็ญพรรณ`, `ปิติพงศ์`, `แพรวไพลิน`, `Fellow`), 14 Surgical Procedures, 3 IOL Presets (`GCB00v`, `SA60WF`, `AU00T`), 13 Diagnoses, 8 Activities, and clinical targets (`PE c IOL`: 30, `Tx c MMC`: 20, `Ahmed GDD`: 10, etc.). App password locked to `1234`.
+- **Logbook Restored**: Restored missing case `c_npahiwg` (HN: 68009474, 2026-07-02, PE c IOL, Diag: OHT, Sup: เพ็ญพรรณ). Total case log count verified at 78 cases.
+- **Cloud Backup Security Rule Enabled**: Added Firestore security rule for `gf_v6_backups` to allow daily automated system backups to write to cloud storage without permission denial. Verified cloud backup snapshot created at `gf_v6_backups/2026-09-18`.
+
+---
+
 ## 📅 [v6.3.2] - 2026-09-16 — *Monthly Rotation Calendar Date Alignment Fix*
 
 ### 🗓️ 5-Day Calendar Date Alignment

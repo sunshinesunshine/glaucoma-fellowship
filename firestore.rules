@@ -5,6 +5,9 @@ service cloud.firestore {
     match /gf_v6/{document=**} {
       allow read, write: if true;
     }
+    match /gf_v6_backups/{document=**} {
+      allow read, write: if true;
+    }
 
     // Corneal SIA & Refraction Tracker Rules
     match /sia_v1/{document=**} {
