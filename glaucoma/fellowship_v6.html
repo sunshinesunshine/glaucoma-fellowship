@@ -491,9 +491,31 @@
     color: #0f172a !important;
     border: 1px solid rgba(15, 23, 42, 0.15) !important;
   }
+
+  /* Tab & Toggle State Helpers (Impeccable Antislop Contrast) */
+  .tab-btn-base {
+    padding: 0.25rem 0.75rem;
+    font-size: 10px;
+    font-weight: 700;
+    transition: all 0.15s ease;
+    border-radius: 8px;
+    color: #94a3b8;
+  }
+  .tab-btn-base:hover { color: #ffffff; }
+  .tab-btn-active-blue { background-color: #2563eb !important; color: #ffffff !important; }
+  .tab-btn-active-orange { background-color: #ea580c !important; color: #ffffff !important; }
+  .tab-btn-active-rose { background-color: #e11d48 !important; color: #ffffff !important; }
+  .tab-btn-active-amber { background-color: #d97706 !important; color: #ffffff !important; }
+  ::selection { background-color: rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+
+
+  .tmpl-tab-active { background-color: #2563eb !important; border-color: #3b82f6 !important; color: #ffffff !important; }
+  .tmpl-tab-inactive { background-color: #0f172a !important; border-color: rgba(255,255,255,0.05) !important; color: #cbd5e1 !important; }
+  .tmpl-tab-inactive:hover { background-color: #1e293b !important; }
+
 </style>
 </head>
-<body class="font-sans antialiased text-slate-200 min-h-screen relative overflow-x-hidden selection:bg-blue-500/30 selection:text-blue-200">
+<body class="font-sans antialiased text-slate-200 min-h-screen relative overflow-x-hidden">
 
   <!-- Background Glows -->
   <div class="ambient-glow glow-1 no-print"></div>
@@ -588,7 +610,7 @@
 
   <!-- PASSWORD GATE OVERLAY -->
   <div id="password-gate-screen" class="fixed inset-0 bg-slate-955/95 backdrop-blur-lg z-50 flex flex-col items-center justify-center p-6 hidden">
-    <div class="glass-card max-w-sm w-full rounded-3xl p-6 flex flex-col items-center text-center relative">
+    <div class="glass-card max-w-sm w-full rounded-2xl p-6 flex flex-col items-center text-center relative">
       <div class="text-5xl mb-4">🔒</div>
       <h2 class="font-outfit font-extrabold text-lg text-slate-100 mb-1">Enter Passcode</h2>
       <p class="text-xs text-slate-400 mb-6">This section is password-protected by the administrator.</p>
@@ -606,7 +628,7 @@
   <!-- INTERACTIVE MODALS -->
   <!-- 1. CELL EDIT OVERLAY MODAL -->
   <div id="cell-edit-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="glass-card max-w-md w-full rounded-3xl p-6 space-y-4">
+    <div class="glass-card max-w-md w-full rounded-2xl p-6 space-y-4">
       <div class="flex items-center justify-between pb-2 border-b border-white/5">
         <h3 id="cell-modal-title" class="font-outfit font-extrabold text-sm text-slate-200 uppercase tracking-wider">Edit Cell Rotation</h3>
         <button onclick="closeCellModal()" class="text-slate-500 hover:text-slate-200 font-bold" aria-label="Close modal">✕</button>
@@ -622,7 +644,7 @@
 
   <!-- 2. LOG CASE / PRE-OP MODAL -->
   <div id="case-log-modal" class="fixed inset-0 bg-slate-955/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="glass-card max-w-lg w-full rounded-3xl p-6 space-y-4">
+    <div class="glass-card max-w-lg w-full rounded-2xl p-6 space-y-4">
       <div class="flex items-center justify-between pb-2 border-b border-white/5">
         <h3 id="case-modal-title" class="font-outfit font-extrabold text-sm text-slate-200 uppercase tracking-wider">Log Case</h3>
         <button onclick="closeCaseModal()" class="text-slate-500 hover:text-slate-200 font-bold" aria-label="Close modal">✕</button>
@@ -707,7 +729,7 @@
 
   <!-- 2.5 ACADEMIC PRESENTATION LOG MODAL -->
   <div id="academic-log-modal" class="fixed inset-0 bg-slate-955/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="glass-card max-w-md w-full rounded-3xl p-6 space-y-4">
+    <div class="glass-card max-w-md w-full rounded-2xl p-6 space-y-4">
       <div class="flex items-center justify-between pb-2 border-b border-white/5">
         <h3 id="academic-modal-title" class="font-outfit font-extrabold text-sm text-slate-200 uppercase tracking-wider">Log Academic Presentation</h3>
         <button onclick="closeAcademicModal()" class="text-slate-500 hover:text-slate-250 font-bold" aria-label="Close modal">✕</button>
@@ -761,7 +783,7 @@
 
   <!-- 4. STUDY CARD MODAL -->
   <div id="study-card-modal" class="fixed inset-0 bg-slate-955/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="glass-card max-w-lg w-full rounded-3xl p-6 space-y-4">
+    <div class="glass-card max-w-lg w-full rounded-2xl p-6 space-y-4">
       <div class="flex items-center justify-between pb-2 border-b border-white/5">
         <h3 id="study-modal-title" class="font-outfit font-extrabold text-sm text-slate-200 uppercase tracking-wider">Add Study Note</h3>
         <button onclick="closeStudyCardModal()" class="text-slate-500 hover:text-slate-200 font-bold" aria-label="Close modal">✕</button>
@@ -802,7 +824,7 @@
 
   <!-- 3. DRILL DOWN LIST MODAL -->
   <div id="drilldown-modal" class="fixed inset-0 bg-slate-955/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="glass-card max-w-2xl w-full rounded-3xl p-6 space-y-4">
+    <div class="glass-card max-w-2xl w-full rounded-2xl p-6 space-y-4">
       <div class="flex items-center justify-between pb-2 border-b border-white/5">
         <h3 id="drill-modal-title" class="font-outfit font-extrabold text-sm text-slate-200 uppercase tracking-wider">Drill Down</h3>
         <button onclick="closeDrillModal()" class="text-slate-500 hover:text-slate-200 font-bold" aria-label="Close modal">✕</button>
@@ -1704,7 +1726,7 @@
         }
       } catch(err) {
         main.innerHTML = `
-          <div class="glass-card rounded-3xl p-6 border border-rose-900/30 bg-rose-955/15 space-y-4 max-w-lg mx-auto mt-8 text-center">
+          <div class="glass-card rounded-2xl p-6 border border-rose-900/30 bg-rose-955/15 space-y-4 max-w-lg mx-auto mt-8 text-center">
             <div class="text-4xl">⚠️</div>
             <h3 class="font-outfit font-extrabold text-base text-rose-400 uppercase tracking-wider">Tab Loading Error</h3>
             <p class="text-xs text-slate-300">An unexpected system error occurred while rendering the <b>${session.activeTab}</b> tab. Your local data has been preserved.</p>
@@ -1754,12 +1776,12 @@
     function renderSummary(container) {
       // 2. Render Calendar Card
       const calCard = document.createElement('div');
-      calCard.className = 'glass-card rounded-3xl p-5 border border-white/5 space-y-4';
+      calCard.className = 'glass-card rounded-2xl p-5 border border-white/5 space-y-4';
       calCard.id = 'summary-calendar-capture';
 
       // 1. Render TodayView / Day Details Card
       const todayCard = document.createElement('div');
-      todayCard.className = 'glass-card rounded-3xl p-5 border border-blue-900/60 space-y-4';
+      todayCard.className = 'glass-card rounded-2xl p-5 border border-blue-900/60 space-y-4';
       updateTodayCard(todayCard);
 
       // Reordered append: today details first, calendar second
@@ -1774,8 +1796,8 @@
           <h3 class="font-outfit font-extrabold text-sm text-slate-100 flex items-center gap-2">📅 Master Schedule</h3>
           <div class="flex items-center gap-3">
             <div class="flex gap-1 bg-slate-900/60 p-0.5 rounded-xl border border-white/5 select-none">
-              <button onclick="setSummaryViewMode('calendar')" class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${session.summaryViewMode === 'calendar' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">📅 Calendar</button>
-              <button onclick="setSummaryViewMode('table')" class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${session.summaryViewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">📋 Comparison Table</button>
+              <button onclick="setSummaryViewMode('calendar')" class="tab-btn-base ${session.summaryViewMode === 'calendar' ? 'tab-btn-active-blue' : ''}">📅 Calendar</button>
+              <button onclick="setSummaryViewMode('table')" class="tab-btn-base ${session.summaryViewMode === 'table' ? 'tab-btn-active-blue' : ''}">📋 Comparison Table</button>
             </div>
             <div class="flex items-center gap-2">
               <button onclick="changeSummaryMonth(-1)" ${session.sMi === 0 ? 'disabled' : ''} class="w-8 h-8 rounded-xl border border-slate-700/50 hover:bg-slate-800 disabled:opacity-30 flex items-center justify-center font-bold transition-all" aria-label="Previous Month">&lsaquo;</button>
@@ -2058,7 +2080,7 @@
 
       // 3. Render Annual Rotation Summary card
       const rotationSummaryCard = document.createElement('div');
-      rotationSummaryCard.className = 'glass-card rounded-3xl p-5 border border-white/5 space-y-4';
+      rotationSummaryCard.className = 'glass-card rounded-2xl p-5 border border-white/5 space-y-4';
       container.appendChild(rotationSummaryCard);
 
       let annualHtml = `
@@ -2452,12 +2474,12 @@
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <!-- Selector controls -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
               <div class="flex items-center justify-between">
                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Fellow</label>
                 <div class="flex gap-1 bg-slate-900/60 p-0.5 rounded-xl border border-white/5">
-                  <button onclick="setRotationFellow('SS')" class="px-3.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeFel === 'SS' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">SS</button>
-                  <button onclick="setRotationFellow('MN')" class="px-3.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${activeFel === 'MN' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white'}">MN</button>
+                  <button onclick="setRotationFellow('SS')" class="tab-btn-base px-3.5 py-1.5 ${activeFel === 'SS' ? 'tab-btn-active-blue' : ''}">SS</button>
+                  <button onclick="setRotationFellow('MN')" class="tab-btn-base px-3.5 py-1.5 ${activeFel === 'MN' ? 'tab-btn-active-orange' : ''}">MN</button>
                 </div>
               </div>
               <div class="flex items-center justify-between">
@@ -2489,7 +2511,7 @@
             </div>
 
             <!-- Rotation Activity Search & Summary -->
-            <div class="glass-card rounded-3xl p-5 border border-blue-900/40 bg-blue-955/5 space-y-4 flex flex-col justify-between shadow-lg">
+            <div class="glass-card rounded-2xl p-5 border border-blue-900/40 bg-blue-955/5 space-y-4 flex flex-col justify-between shadow-lg">
               <div class="flex items-center justify-between border-b border-white/5 pb-1.5">
                 <h3 class="font-outfit font-extrabold text-xs text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
                   <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -2510,7 +2532,7 @@
           </div>
 
           <!-- Weekly Schedule Grid -->
-          <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
             <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">📅 Weekly Rotation Matrix &mdash; ${activeFel} [${lb}]</h3>
             
             <div class="overflow-x-auto rounded-2xl border border-white/5 bg-slate-955/20">
@@ -2568,7 +2590,7 @@
           </div>
 
           <!-- Monthly Rotation Calendar Grid -->
-          <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
             <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">📅 Monthly Rotation Calendar &mdash; ${activeFel} [${lb}]</h3>
             
             <div class="grid grid-cols-5 gap-1.5">
@@ -2601,7 +2623,10 @@
                           : 'border-white/5 bg-slate-900/40'
                   }">
                     <div class="flex justify-between items-center w-full">
-                      <span class="text-[10px] font-bold ${isToday ? 'text-white bg-blue-500 rounded-full w-4 h-4 flex items-center justify-center text-[9px]' : hol ? 'text-pink-400' : 'text-slate-350'}">${d}</span>
+                      ${isToday 
+                        ? `<span class="text-white bg-blue-500 rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">${d}</span>` 
+                        : `<span class="text-[10px] font-bold ${hol ? 'text-pink-400' : 'text-slate-200'}">${d}</span>`
+                      }
                       ${hol ? `<span class="text-[7px] text-pink-400 truncate max-w-[40px] font-medium" title="${TH_HOL[hk(y,m,d)]}">${TH_HOL[hk(y,m,d)]}</span>` : ''}
                     </div>
                     ${hol ? `
@@ -2957,7 +2982,7 @@
           ${imbalance ? `<div class="bg-amber-955/20 border border-amber-800/30 rounded-2xl px-4 py-2.5 text-xs text-amber-300 font-medium">⚠️ Imbalance — SS ${allStats.total.SS.night}N/${allStats.total.SS.wknd}W vs MN ${allStats.total.MN.night}N/${allStats.total.MN.wknd}W</div>` : ''}
 
           <!-- Off Duty Booking Modal -->
-          <div id="off-duty-panel" class="hidden glass-card rounded-3xl p-5 border border-amber-800/30 space-y-3">
+          <div id="off-duty-panel" class="hidden glass-card rounded-2xl p-5 border border-amber-800/30 space-y-3">
             <div class="flex items-center justify-between">
               <h3 class="font-outfit font-extrabold text-xs text-amber-300 uppercase tracking-wider">📴 Book Off-Duty Day</h3>
               <button onclick="closeOffDutyModal()" class="text-slate-500 hover:text-white font-bold" aria-label="Close modal">✕</button>
@@ -2987,7 +3012,7 @@
 
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <!-- Monthly Oncall Grid -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 lg:col-span-2 space-y-4">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 lg:col-span-2 space-y-4">
               <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">📅 Monthly On-Call Grid
                 <span class="text-slate-500 font-normal normal-case text-[10px] ml-2">Tap day to toggle SS ↔ MN</span>
               </h3>
@@ -3002,7 +3027,7 @@
             <!-- Right Column with Stats & Bookings -->
             <div class="space-y-4">
               <!-- On-Call Summary and Stats panel -->
-              <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+              <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
                 <div>
                   <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-3">📊 Total Duty Count</h3>
                 
@@ -3065,14 +3090,14 @@
             </div>
 
             <!-- Booking Day Off Summary Card -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-3">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-3">
               <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">📴 Booking Day Off Summary</h3>
               ${offDutyHtml}
             </div>
           </div>
 
           <!-- Monthly breakdown table -->
-          <div class="glass-card rounded-3xl p-5 border border-white/5">
+          <div class="glass-card rounded-2xl p-5 border border-white/5">
             <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-3">📋 Monthly Duty Summary</h3>
             <div class="overflow-x-auto rounded-2xl border border-white/5">
               <table class="w-full text-xs border-collapse">
@@ -3152,7 +3177,10 @@
             ${od ? `<span class="text-[7.5px] bg-amber-955 text-amber-400 border border-amber-800/40 px-1 rounded-md">Off</span>` : ''}
           </div>
           <div class="text-center w-full pb-0.5">
-            ${oc ? `<span class="px-2 py-0.5 rounded text-[9px] font-bold ${oc === 'SS' ? 'bg-blue-600 text-white' : 'bg-orange-600 text-white'}">${oc}</span>` : `<span class="text-[9px] text-slate-600 font-medium">—</span>`}
+            ${oc 
+              ? `<span class="px-2 py-0.5 rounded text-[9px] font-bold ${oc === 'SS' ? 'bg-blue-600 text-white' : 'bg-orange-600 text-white'}">${oc}</span>` 
+              : `<span class="text-[9px] text-slate-500 font-medium">—</span>`
+            }
           </div>
         `;
         grid.appendChild(dayCell);
@@ -3395,14 +3423,14 @@
           <div class="flex items-center justify-between flex-wrap gap-2.5">
             <!-- Left Side: Completed/Preop/Academic Tabs -->
             <div class="flex gap-1.5 bg-slate-900/60 p-0.5 rounded-xl border border-white/5">
-              <button onclick="setCasesTab('logged')" class="px-4 py-2 rounded-lg text-xs font-bold transition-all ${session.activeCasesTab === 'logged' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-white'}">🔴 Completed Case Log</button>
-              <button onclick="setCasesTab('preop')" class="px-4 py-2 rounded-lg text-xs font-bold transition-all ${session.activeCasesTab === 'preop' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}">🟡 Pre-Op List</button>
+              <button onclick="setCasesTab('logged')" class="tab-btn-base px-4 py-2 text-xs ${session.activeCasesTab === 'logged' ? 'tab-btn-active-rose' : ''}">🔴 Completed Case Log</button>
+              <button onclick="setCasesTab('preop')" class="tab-btn-base px-4 py-2 text-xs ${session.activeCasesTab === 'preop' ? 'tab-btn-active-amber' : ''}">🟡 Pre-Op List</button>
             </div>
             
             <!-- Middle: Calendar / List View switcher -->
             <div class="flex gap-1 bg-slate-900/60 p-0.5 rounded-xl border border-white/5 select-none">
-              <button onclick="setCasesViewMode('calendar')" class="px-3.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${session.caseViewMode === 'calendar' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">📅 Calendar</button>
-              <button onclick="setCasesViewMode('table')" class="px-3.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${session.caseViewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">📋 List</button>
+              <button onclick="setCasesViewMode('calendar')" class="tab-btn-base px-3.5 py-1.5 ${session.caseViewMode === 'calendar' ? 'tab-btn-active-blue' : ''}">📅 Calendar</button>
+              <button onclick="setCasesViewMode('table')" class="tab-btn-base px-3.5 py-1.5 ${session.caseViewMode === 'table' ? 'tab-btn-active-blue' : ''}">📋 List</button>
             </div>
 
             <!-- Right Side: Export & Add Buttons -->
@@ -3445,15 +3473,15 @@
               return countB - countA;
             });
             return `
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-3">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-3">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider">⚕️ Case Volume Summary</h3>
                   <span class="text-[10px] text-slate-400 font-normal">(Competency Targets)</span>
                 </div>
                 <div class="flex gap-1 bg-slate-900/60 p-0.5 rounded-xl border border-white/5">
-                  <button onclick="setCasesFellow('SS')" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${session.activeRotFellow === 'SS' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">SS</button>
-                  <button onclick="setCasesFellow('MN')" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${session.activeRotFellow === 'MN' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white'}">MN</button>
+                  <button onclick="setCasesFellow('SS')" class="tab-btn-base px-3 py-1.5 ${session.activeRotFellow === 'SS' ? 'tab-btn-active-blue' : ''}">SS</button>
+                  <button onclick="setCasesFellow('MN')" class="tab-btn-base px-3 py-1.5 ${session.activeRotFellow === 'MN' ? 'tab-btn-active-orange' : ''}">MN</button>
                 </div>
               </div>
               <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -3502,7 +3530,7 @@
           : "Search by HN, Procedure, Diagnosis or Supervisor...";
 
         contentView.innerHTML = `
-          <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
             <!-- Search & Time Range Bar -->
             <div class="flex items-center justify-between flex-wrap gap-2.5">
               <!-- Search Box -->
@@ -3520,10 +3548,10 @@
 
               <!-- Time Scope Selector (All / Day / Week / Month) -->
               <div class="flex items-center gap-1 bg-slate-900/90 p-0.5 rounded-xl border border-white/5 select-none text-xs">
-                <button onclick="setCaseTimeFilter('all')" class="px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${session.caseTimeFilter === 'all' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">ทั้งหมด (All)</button>
-                <button onclick="setCaseTimeFilter('day')" class="px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${session.caseTimeFilter === 'day' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">วัน (Day)</button>
-                <button onclick="setCaseTimeFilter('week')" class="px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${session.caseTimeFilter === 'week' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">สัปดาห์ (Week)</button>
-                <button onclick="setCaseTimeFilter('month')" class="px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${session.caseTimeFilter === 'month' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}">เดือน (Month)</button>
+                <button onclick="setCaseTimeFilter('all')" class="tab-btn-base px-2.5 py-1.5 ${session.caseTimeFilter === 'all' ? 'tab-btn-active-blue' : ''}">ทั้งหมด (All)</button>
+                <button onclick="setCaseTimeFilter('day')" class="tab-btn-base px-2.5 py-1.5 ${session.caseTimeFilter === 'day' ? 'tab-btn-active-blue' : ''}">วัน (Day)</button>
+                <button onclick="setCaseTimeFilter('week')" class="tab-btn-base px-2.5 py-1.5 ${session.caseTimeFilter === 'week' ? 'tab-btn-active-blue' : ''}">สัปดาห์ (Week)</button>
+                <button onclick="setCaseTimeFilter('month')" class="tab-btn-base px-2.5 py-1.5 ${session.caseTimeFilter === 'month' ? 'tab-btn-active-blue' : ''}">เดือน (Month)</button>
               </div>
 
               ${session.caseTimeFilter !== 'all' ? `
@@ -3568,7 +3596,7 @@
       } else {
         // Render Calendar View
         const calCard = document.createElement('div');
-        calCard.className = 'glass-card rounded-3xl p-5 border border-white/5 space-y-4';
+        calCard.className = 'glass-card rounded-2xl p-5 border border-white/5 space-y-4';
         contentView.appendChild(calCard);
 
         const calHeader = document.createElement('div');
@@ -3696,7 +3724,7 @@
           const acadCases = (state.academicLog || []).filter(e => e.date === ds);
           
           const detailCard = document.createElement('div');
-          detailCard.className = 'glass-card rounded-3xl p-5 border border-blue-900/60 space-y-4 mt-4';
+          detailCard.className = 'glass-card rounded-2xl p-5 border border-blue-900/60 space-y-4 mt-4';
           
           detailCard.innerHTML = `
             <div class="flex items-center justify-between border-b border-white/5 pb-2">
@@ -4507,7 +4535,7 @@
           <h2 class="font-outfit font-extrabold text-base tracking-wide uppercase text-slate-200">System Preferences</h2>
 
           <!-- Password lock manager -->
-          <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
             <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-2">🔒 Administrative Passcode</h3>
             <div class="p-1 space-y-4">
               ${hasPassword ? `
@@ -4531,7 +4559,7 @@
           </div>
 
           <!-- LINE Messaging API Settings -->
-          <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
             <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-2">📲 LINE Messaging API</h3>
             <div class="space-y-3 text-xs">
               <div>
@@ -4553,7 +4581,7 @@
           </div>
 
           <!-- Database Connection -->
-          <div class="glass-card rounded-3xl p-5 border border-white/5">
+          <div class="glass-card rounded-2xl p-5 border border-white/5">
             <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-3">🔥 Database Connection</h3>
             <div class="bg-emerald-955/20 border border-emerald-900/30 rounded-2xl p-3 flex flex-col gap-2 text-xs">
               <div class="flex items-center gap-2">
@@ -4565,20 +4593,20 @@
           </div>
 
           <!-- Template Management -->
-          <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
             <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-2">🔄 Template Management</h3>
             <p class="text-[11px] text-slate-400 leading-normal mb-4">Editing templates below will immediately update all months currently linked to that template.</p>
             <div class="flex gap-2">
-              <button onclick="openTemplateEditor('A')" class="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${session.activeRotTmplTab === 'A' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'}">Template A</button>
-              <button onclick="openTemplateEditor('B')" class="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${session.activeRotTmplTab === 'B' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'}">Template B</button>
-              <button onclick="openTemplateEditor('C')" class="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${session.activeRotTmplTab === 'C' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'}">Template C</button>
+              <button onclick="openTemplateEditor('A')" class="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${session.activeRotTmplTab === 'A' ? 'tmpl-tab-active' : 'tmpl-tab-inactive'}">Template A</button>
+              <button onclick="openTemplateEditor('B')" class="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${session.activeRotTmplTab === 'B' ? 'tmpl-tab-active' : 'tmpl-tab-inactive'}">Template B</button>
+              <button onclick="openTemplateEditor('C')" class="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${session.activeRotTmplTab === 'C' ? 'tmpl-tab-active' : 'tmpl-tab-inactive'}">Template C</button>
             </div>
           </div>
 
           <!-- Lists editors (Faculty, Procedures, Morning Activities) -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <!-- Faculty Directory -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
               <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">👩‍⚕️ Faculty Supervisors</h3>
               <div class="flex flex-wrap gap-2" id="settings-sups-list"></div>
               <div class="flex gap-2">
@@ -4587,7 +4615,7 @@
               </div>
             </div>
             <!-- Surgical Procedures -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
               <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">⚕️ Surgical Procedures</h3>
               <div class="flex flex-wrap gap-2" id="settings-procs-list"></div>
               <div class="flex gap-2">
@@ -4596,7 +4624,7 @@
               </div>
             </div>
             <!-- Diagnosis Settings -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
               <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">🔍 Diagnosis Settings</h3>
               <div class="flex flex-wrap gap-2" id="settings-diags-list"></div>
               <div class="flex gap-2">
@@ -4605,7 +4633,7 @@
               </div>
             </div>
             <!-- IOL Types Preset Settings -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
               <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">🔬 IOL Types (Presets)</h3>
               <div class="flex flex-wrap gap-2" id="settings-iol-list"></div>
               <div class="flex gap-2">
@@ -4614,7 +4642,7 @@
               </div>
             </div>
             <!-- Morning Activities -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4 md:col-span-2">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4 md:col-span-2">
               <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">📚 Morning Academic Activities</h3>
               <div class="flex flex-wrap gap-2" id="settings-ma-list"></div>
               <div class="flex gap-2">
@@ -4624,7 +4652,7 @@
             </div>
 
             <!-- Rotation Activities & Cover -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4 md:col-span-2">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4 md:col-span-2">
               <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-1">⚙️ Rotation Activities &amp; Cover</h3>
               <div class="space-y-2 text-xs" id="settings-acts-list">
                 <!-- Dynamically populated activities -->
@@ -4641,7 +4669,7 @@
           </div>
 
           <!-- Competency Targets -->
-          <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
             <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider mb-2">🎯 Competency Case Targets</h3>
             <div class="space-y-2" id="settings-targets-list"></div>
             <div class="flex gap-2 border-t border-white/5 pt-3">
@@ -4655,7 +4683,7 @@
           </div>
 
           <!-- 🛡️ BACKUP & RECOVERY CENTER -->
-          <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
             <div class="flex items-center justify-between">
               <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider">🛡️ Backup & Recovery Center</h3>
               <button onclick="refreshBackupPanel()" class="text-[10px] text-slate-400 hover:text-slate-200 transition-colors px-2 py-1 rounded-lg border border-white/5 hover:border-white/10">↻ Refresh</button>
@@ -5342,7 +5370,7 @@
               <p class="text-slate-400 text-sm">2026 – 2027 Schedule</p>
               <p class="text-amber-400 text-xs mt-1 font-semibold">🔒 View only — Cannot edit</p>
             </div>
-            <div class="glass-card rounded-3xl px-5 py-4 border border-white/5 flex items-center justify-between flex-wrap gap-2">
+            <div class="glass-card rounded-2xl px-5 py-4 border border-white/5 flex items-center justify-between flex-wrap gap-2">
               <h3 class="font-outfit font-extrabold text-sm text-slate-100">📅 Master Schedule</h3>
               <div class="flex items-center gap-2 select-none">
                 <button onclick="changeRoMonth(-1)" id="ro-prev-btn" class="w-8 h-8 rounded-xl border border-slate-700/50 hover:bg-slate-800 disabled:opacity-30 flex items-center justify-center font-bold transition-all" aria-label="Previous Month">&lsaquo;</button>
@@ -5350,7 +5378,7 @@
                 <button onclick="changeRoMonth(1)" id="ro-next-btn" class="w-8 h-8 rounded-xl border border-slate-700/50 hover:bg-slate-800 disabled:opacity-30 flex items-center justify-center font-bold transition-all" aria-label="Next Month">&rsaquo;</button>
               </div>
             </div>
-            <div id="share-calendar" class="glass-card rounded-3xl p-5 border border-white/5 space-y-4"></div>
+            <div id="share-calendar" class="glass-card rounded-2xl p-5 border border-white/5 space-y-4"></div>
           </div>
         </div>
       `;
@@ -5583,8 +5611,8 @@
           <div class="flex items-center justify-between flex-wrap gap-2.5">
             <!-- Left Side: Study Notes & Academic Log Tabs -->
             <div class="flex gap-1.5 bg-slate-900/60 p-0.5 rounded-xl border border-white/5">
-              <button onclick="setStudyTab('notes')" class="px-4 py-2 rounded-lg text-xs font-bold transition-all ${session.activeStudyTab === 'notes' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">🧠 Clinical Study Notes</button>
-              <button onclick="setStudyTab('academic')" class="px-4 py-2 rounded-lg text-xs font-bold transition-all ${session.activeStudyTab === 'academic' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}">📚 Academic Log</button>
+              <button onclick="setStudyTab('notes')" class="tab-btn-base px-4 py-2 text-xs ${session.activeStudyTab === 'notes' ? 'tab-btn-active-blue' : ''}">🧠 Clinical Study Notes</button>
+              <button onclick="setStudyTab('academic')" class="tab-btn-base px-4 py-2 text-xs ${session.activeStudyTab === 'academic' ? 'tab-btn-active-blue' : ''}">📚 Academic Log</button>
             </div>
             
             <!-- Right Side: Actions -->
@@ -5617,7 +5645,7 @@
             <div id="study-cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1"></div>
           ` : `
             <!-- Academic Log View -->
-            <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-4">
+            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
               <div class="flex items-center justify-between border-b border-white/5 pb-2">
                 <h3 class="font-outfit font-extrabold text-sm text-slate-100 flex items-center gap-2">📚 Academic Presentation Logbook</h3>
                 <div class="flex items-center gap-3">
@@ -5674,7 +5702,7 @@
       }
 
       grid.innerHTML = cardsList.map((c) => `
-        <div class="glass-card rounded-3xl p-5 border border-white/5 space-y-3 bg-slate-950 flex flex-col justify-between">
+        <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-3 bg-slate-950 flex flex-col justify-between">
           <div class="space-y-2">
             <div class="flex items-start justify-between">
               <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-blue-900/30 text-blue-400 border border-blue-900/40">Clinical Note</span>
