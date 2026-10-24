@@ -513,9 +513,49 @@
   .tmpl-tab-inactive { background-color: #0f172a !important; border-color: rgba(255,255,255,0.05) !important; color: #cbd5e1 !important; }
   .tmpl-tab-inactive:hover { background-color: #1e293b !important; }
 
+  /* Toast Notification */
+  #toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+    max-width: 90vw;
+  }
+  .toast-msg {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .toast-success { background: rgba(16, 185, 129, 0.18); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7; }
+  .toast-error { background: rgba(244, 63, 94, 0.2); border-color: rgba(244, 63, 94, 0.45); color: #fda4af; }
+  .toast-warning { background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fde68a; }
+  .toast-info { background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.4); color: #93c5fd; }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
 </style>
 </head>
 <body class="font-sans antialiased text-slate-200 min-h-screen relative overflow-x-hidden">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="no-print"></div>
 
   <!-- Background Glows -->
   <div class="ambient-glow glow-1 no-print"></div>
@@ -532,7 +572,7 @@
         <div>
           <div class="flex items-center gap-1.5">
             <h1 class="font-outfit font-bold text-sm tracking-wide text-slate-100">Glaucoma Fellowship</h1>
-            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.3.0</span>
+            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.3.6</span>
           </div>
           <p class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">SS & MN &middot; 2026–2027</p>
         </div>
@@ -979,6 +1019,32 @@
     }
 
     // ── HELPERS ───────────────────────────────────────────
+    function showToast(msg, type = 'info', duration = 3000) {
+      try {
+        const container = document.getElementById('toast-container');
+        if (!container) {
+          console.log(`[Toast ${type}]: ${msg}`);
+          return;
+        }
+        const toast = document.createElement('div');
+        toast.className = `toast-msg toast-${type}`;
+        const icons = {
+          success: '✅',
+          error: '❌',
+          warning: '⚠️',
+          info: 'ℹ️'
+        };
+        toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span class="flex-1">${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateY(-8px) scale(0.95)';
+          setTimeout(() => toast.remove(), 250);
+        }, duration);
+      } catch(e) {
+        console.log(`[Toast]: ${msg}`);
+      }
+    }
     const hk = (y, m, d) => `${y}-${m + 1}-${d}`; // Month is 1-indexed for holiday keys
     const isHol = (y, m, d) => !!TH_HOL[hk(y, m, d)];
     const fds = (y, m, d) => `${y}${String(m + 1).padStart(2, '0')}${String(d).padStart(2, '0')}`;
@@ -1029,11 +1095,16 @@
     }
 
     function genICS(evts) {
-      const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'CALSCALE:GREGORIAN', 'PRODID:-//GF//EN'];
+      const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'CALSCALE:GREGORIAN', 'PRODID:-//GlaucomaFellowship//EN'];
       evts.forEach(e => {
         L.push('BEGIN:VEVENT');
-        L.push(e.allDay ? `DTSTART;VALUE=DATE:${e.s}` : `DTSTART:${e.s}`);
-        L.push(e.allDay ? `DTEND;VALUE=DATE:${e.e}` : `DTEND:${e.e}`);
+        if (e.allDay) {
+          L.push(`DTSTART;VALUE=DATE:${e.s}`);
+          L.push(`DTEND;VALUE=DATE:${e.e}`);
+        } else {
+          L.push(`DTSTART:${e.s}`);
+          L.push(`DTEND:${e.e}`);
+        }
         L.push(`SUMMARY:${e.title}`);
         L.push(`DESCRIPTION:${e.desc || ''}`);
         L.push('END:VEVENT');
@@ -1620,6 +1691,10 @@
       caseViewMode: 'calendar',
       caseTimeFilter: 'all',
       caseFilterDate: dStr(new Date()),
+      caseFilterSupervisor: '',
+      caseFilterProcedure: '',
+      casePage: 1,
+      casePageSize: 25,
       activeRotFellow: 'SS',
       activeRotTmplTab: 'A',
       activeCasesTab: 'logged',
@@ -2469,7 +2544,9 @@
             <h2 class="font-outfit font-extrabold text-base tracking-wide uppercase text-slate-200">Rotation Planner</h2>
             <div class="flex gap-2">
               <button onclick="printRotation()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/50 text-xs font-bold transition-all">🖨️ Print Rotation</button>
-              <button onclick="exportRotICS('${activeFel}')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all">Export ICS Calendar</button>
+              <button onclick="exportRotICS('${activeFel}')" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1.5" title="Export monthly rotation schedule to Apple or Google Calendar">
+                <span>📅 Export .ics</span>
+              </button>
             </div>
           </div>
 
@@ -2916,6 +2993,7 @@
       
       const ics = genICS(evts);
       downloadFile(ics, `${fellow}_glaucoma_rotation.ics`, 'text/calendar');
+      showToast(`Exported ${fellow} Rotation iCalendar file`, 'success');
     }
 
     // ── ON-CALL TAB ───────────────────────────────────────
@@ -3206,15 +3284,16 @@
       if (!pw) return;
       if (pw === (state.sett.appPassword || '')) {
         session.unlocked = true;
+        showToast('Admin mode unlocked', 'success');
         renderActiveTab();
       } else {
-        alert('❌ Incorrect password');
+        showToast('Incorrect password', 'error');
       }
     };
 
     function toggleOnCallDay(ds) {
       if (!session.unlocked) {
-        alert('🔒 Admin access required to change duty assignments.\n\nBook an off-day is still available without login.');
+        showToast('Admin access required to change duty assignments', 'warning');
         return;
       }
       const cur = state.call[ds];
@@ -3222,7 +3301,7 @@
       const isMNOff = getOffDutyFellow(ds) === 'MN';
       
       if (isSSOff && isMNOff) {
-        alert("Both fellows are off-duty on this day!");
+        showToast('Both fellows are off-duty on this day!', 'warning');
         return;
       }
       
@@ -3278,21 +3357,25 @@
       Object.entries(state.call).forEach(([ds, f]) => {
         if (f === fellow) {
           const [y, m, d] = ds.split('-').map(Number);
+          const startDStr = `${y}${String(m).padStart(2, '0')}${String(d).padStart(2, '0')}`;
+          const nextDay = new Date(y, m - 1, d + 1);
+          const endDStr = `${nextDay.getFullYear()}${String(nextDay.getMonth() + 1).padStart(2, '0')}${String(nextDay.getDate()).padStart(2, '0')}`;
           evts.push({
-            start: [y, m, d, 16, 0],
-            end: [y, m, d + 1, 8, 30],
+            s: startDStr + 'T160000',
+            e: endDStr + 'T083000',
             title: `🏥 On-Call: ${fellow} Fellow`,
-            desc: `Fellowship on-call rotation duty shift`
+            desc: `Glaucoma Fellowship on-call duty shift`
           });
         }
       });
       const ics = genICS(evts);
       downloadFile(ics, `${fellow}_on_call_roster.ics`, 'text/calendar');
+      showToast(`Exported ${fellow} On-Call iCalendar file`, 'success');
     }
 
     function reBalanceOnCall() {
       if (!session.unlocked) {
-        alert('🔒 Admin access required to re-balance duty.');
+        showToast('Admin access required to re-balance duty', 'warning');
         return;
       }
       const allStats = getOnCallStatsAll();
@@ -3605,6 +3688,32 @@
               ` : ''}
             </div>
 
+            <!-- Advanced Filters Bar (Supervisor & Procedure) -->
+            <div class="flex items-center gap-2 flex-wrap text-xs bg-slate-900/60 p-2.5 rounded-xl border border-white/5">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-bold text-slate-400">Filter:</span>
+                <!-- Supervisor Filter -->
+                <select id="case-filter-sup" onchange="setCaseFilterSupervisor(this.value)" class="bg-slate-955 text-slate-200 border border-white/10 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500">
+                  <option value="">👤 All Supervisors</option>
+                  ${(state.sett.sups || []).map(s => `<option value="${s}" ${session.caseFilterSupervisor === s ? 'selected' : ''}>${s}</option>`).join('')}
+                </select>
+              </div>
+
+              ${!isAcademic ? `
+              <div class="flex items-center gap-1.5">
+                <!-- Procedure Filter -->
+                <select id="case-filter-proc" onchange="setCaseFilterProcedure(this.value)" class="bg-slate-955 text-slate-200 border border-white/10 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-blue-500 max-w-[200px] truncate">
+                  <option value="">🔬 All Procedures</option>
+                  ${(state.sett.procs || []).map(p => `<option value="${p}" ${session.caseFilterProcedure === p ? 'selected' : ''}>${p}</option>`).join('')}
+                </select>
+              </div>
+              ` : ''}
+
+              ${(session.caseFilterSupervisor || session.caseFilterProcedure || session.orSearch || session.caseTimeFilter !== 'all') ? `
+                <button onclick="clearCaseFilters()" class="ml-auto text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold transition-all">✕ Reset Filters</button>
+              ` : ''}
+            </div>
+
             <div class="overflow-x-auto rounded-2xl border border-white/5 bg-slate-955/20">
               <table class="w-full text-xs border-collapse">
                 <thead>
@@ -3629,6 +3738,8 @@
                 <tbody class="divide-y divide-white/5" id="cases-list-tbody"></tbody>
               </table>
             </div>
+            <!-- Pagination / Counter Container -->
+            <div id="cases-pagination-container"></div>
           </div>
         `;
         renderCasesList();
@@ -3873,11 +3984,13 @@
 
     function setCasesTab(tab) {
       session.activeCasesTab = tab;
+      session.casePage = 1;
       renderActiveTab();
     }
 
     function setCaseTimeFilter(filter) {
       session.caseTimeFilter = filter;
+      session.casePage = 1;
       renderActiveTab();
     }
 
@@ -3891,13 +4004,46 @@
         cur.setMonth(cur.getMonth() + delta);
       }
       session.caseFilterDate = dStr(cur);
+      session.casePage = 1;
       renderActiveTab();
     }
 
     function onCaseFilterDateChange(newDateStr) {
       if (!newDateStr) return;
       session.caseFilterDate = newDateStr;
+      session.casePage = 1;
       renderActiveTab();
+    }
+
+    function setCaseFilterSupervisor(sup) {
+      session.caseFilterSupervisor = sup;
+      session.casePage = 1;
+      renderCasesList();
+    }
+
+    function setCaseFilterProcedure(proc) {
+      session.caseFilterProcedure = proc;
+      session.casePage = 1;
+      renderCasesList();
+    }
+
+    function clearCaseFilters() {
+      session.caseFilterSupervisor = '';
+      session.caseFilterProcedure = '';
+      session.orSearch = '';
+      session.caseTimeFilter = 'all';
+      session.casePage = 1;
+      renderActiveTab();
+    }
+
+    function loadMoreCases() {
+      session.casePage = (session.casePage || 1) + 1;
+      renderCasesList();
+    }
+
+    function resetCasePagination() {
+      session.casePage = 1;
+      renderCasesList();
     }
 
     function getCaseFilterLabel() {
@@ -3920,6 +4066,7 @@
     
     function handleCasesSearch(q) {
       session.orSearch = q;
+      session.casePage = 1;
       renderCasesList();
     }
 
@@ -3935,7 +4082,7 @@
           ? state.orLog
           : state.preop;
           
-      const q = session.orSearch.toLowerCase();
+      const q = (session.orSearch || '').toLowerCase();
       
       const filtered = list.filter(e => {
         // 1. Time range filter (All / Day / Week / Month)
@@ -3959,7 +4106,17 @@
           }
         }
 
-        // 2. Search query filter
+        // 2. Supervisor filter
+        if (session.caseFilterSupervisor && e.supervisor !== session.caseFilterSupervisor) {
+          return false;
+        }
+
+        // 3. Procedure filter (clinical tabs)
+        if (!isAcademic && session.caseFilterProcedure && e.procedure !== session.caseFilterProcedure) {
+          return false;
+        }
+
+        // 4. Search query filter
         if (!q) return true;
         if (isAcademic) {
           return (e.type || '').toLowerCase().includes(q) || 
@@ -3975,15 +4132,23 @@
                (e.notes || '').toLowerCase().includes(q);
       });
 
+      const pagContainer = document.getElementById('cases-pagination-container');
+
       if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${isAcademic ? 6 : session.activeCasesTab === 'preop' ? 8 : 7}" class="p-8 text-center text-slate-500 font-medium">No log entries match your filters.</td></tr>`;
+        if (pagContainer) pagContainer.innerHTML = '';
         return;
       }
 
       // Sort by date descending
       filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      filtered.forEach(e => {
+      const pageSize = session.casePageSize || 25;
+      const currentPage = session.casePage || 1;
+      const displayCount = currentPage * pageSize;
+      const displayed = filtered.slice(0, displayCount);
+
+      displayed.forEach(e => {
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-900/30 transition-all font-medium';
         
@@ -4040,6 +4205,28 @@
         }
         tbody.appendChild(tr);
       });
+
+      if (pagContainer) {
+        pagContainer.innerHTML = `
+          <div class="flex items-center justify-between flex-wrap gap-2 pt-3 border-t border-white/5 text-xs text-slate-400">
+            <div>
+              Showing <span class="font-bold text-slate-200">${displayed.length}</span> of <span class="font-bold text-slate-200">${filtered.length}</span> entries
+            </div>
+            <div class="flex items-center gap-2">
+              ${filtered.length > displayed.length ? `
+                <button onclick="loadMoreCases()" class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1.5">
+                  <span>Show More (+${Math.min(pageSize, filtered.length - displayed.length)})</span>
+                </button>
+              ` : ''}
+              ${currentPage > 1 ? `
+                <button onclick="resetCasePagination()" class="px-3.5 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition-all">
+                  Show Less (Top 25)
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
     }
 
     function openNewAcademicModal() {
@@ -4071,7 +4258,7 @@
       const supervisor = document.getElementById('academic-sup').value;
       const notes = document.getElementById('academic-notes').value.trim();
       
-      if (!topic) { alert('Topic / Title is required'); return; }
+      if (!topic) { showToast('Topic / Title is required', 'warning'); return; }
       
       const entry = {
         id: id || 'ac_' + Math.random().toString(36).substring(2, 9),
@@ -4223,7 +4410,7 @@
       const supervisor = document.getElementById('case-sup').value;
       const notes = document.getElementById('case-notes').value.trim();
       
-      if (!hn) { alert('HN Number is required'); return; }
+      if (!hn) { showToast('HN Number is required', 'warning'); return; }
       
       if (type === 'logged' && !id) {
         const dupe = checkDuplicate(hn, procedure, date);
@@ -4933,8 +5120,9 @@
         renderSettingsLists();
         input.value = '';
         clinicalInput.checked = false;
+        showToast(`Activity "${name}" added`, 'success');
       } else {
-        alert('An activity with this name already exists.');
+        showToast('An activity with this name already exists', 'warning');
       }
     }
 
@@ -4999,18 +5187,18 @@
       state.sett.ssLineId = (document.getElementById('settings-line-ss').value || '').trim();
       state.sett.mnLineId = (document.getElementById('settings-line-mn').value || '').trim();
       saveState('settings');
-      alert('✅ LINE settings saved!');
+      showToast('LINE settings saved!', 'success');
     }
 
     function savePasscode() {
       const p1 = document.getElementById('settings-pw-1').value;
       const p2 = document.getElementById('settings-pw-2').value;
-      if (!p1) { alert('Passcode cannot be empty'); return; }
-      if (p1 !== p2) { alert('Passcodes do not match'); return; }
+      if (!p1) { showToast('Passcode cannot be empty', 'warning'); return; }
+      if (p1 !== p2) { showToast('Passcodes do not match', 'warning'); return; }
       
       state.sett.appPassword = p1;
       saveState('settings');
-      alert('✅ Administrative passcode updated!');
+      showToast('Administrative passcode updated!', 'success');
       renderActiveTab();
     }
     
@@ -5019,6 +5207,7 @@
         state.sett.appPassword = '';
         session.unlocked = false;
         saveState('settings');
+        showToast('Administrative passcode disabled', 'info');
         renderActiveTab();
       }
     }
@@ -5026,8 +5215,8 @@
     function exportJSONState() {
       const dataStr = JSON.stringify(state, null, 2);
       downloadFile(dataStr, `glaucoma_backup_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+      showToast('Full database JSON exported', 'success');
     }
-
 
     // ── BACKUP UI FUNCTIONS ────────────────────────────────────────────────
 
@@ -5035,6 +5224,7 @@
       writeVersionedBackup();
       writeCloudBackup(true).then(() => {
         refreshBackupPanel();
+        showToast('Manual backup completed: Local + Cloud snapshot saved', 'success');
         // Brief green flash on the Backup Now button
         const btn = document.querySelector('[onclick="triggerManualBackup()"]');
         if (btn) {
@@ -5106,7 +5296,7 @@
 
     function doRestoreFromLocalSnap(key, mode) {
       const raw = localStorage.getItem(key);
-      if (!raw) { alert('❌ Snapshot not found in local storage.'); return; }
+      if (!raw) { showToast('Snapshot not found in local storage', 'error'); return; }
       try {
         const snap = JSON.parse(raw);
         const dt = new Date(snap.timestamp).toLocaleString('th-TH');
@@ -5115,17 +5305,17 @@
           : `⚠️ OVERWRITE all current data with snapshot from ${dt}?\nThis cannot be undone!`;
         if (!confirm(msg)) return;
         restoreFromSnapshot(snap, mode);
-        alert(`✅ Restore complete! ${mode === 'merge' ? 'Cases merged.' : 'Data replaced.'}`);
+        showToast(`Restore complete! ${mode === 'merge' ? 'Cases merged.' : 'Data replaced.'}`, 'success');
         renderActiveTab();
         refreshBackupPanel();
-      } catch(e) { alert('❌ Failed to parse snapshot: ' + e.message); }
+      } catch(e) { showToast('Failed to parse snapshot: ' + e.message, 'error'); }
     }
 
     async function doRestoreFromCloudSnap(dateKey, mode) {
-      if (!db) { alert('❌ Not connected to Firestore.'); return; }
+      if (!db) { showToast('Not connected to Firestore', 'error'); return; }
       try {
         const doc = await db.collection(COL_BACKUPS).doc(dateKey).get();
-        if (!doc.exists) { alert('❌ Cloud snapshot not found.'); return; }
+        if (!doc.exists) { showToast('Cloud snapshot not found', 'error'); return; }
         const snap = doc.data();
         const dt = new Date(snap.timestamp).toLocaleString('th-TH');
         const msg = mode === 'merge'
@@ -5133,10 +5323,10 @@
           : `⚠️ OVERWRITE all current data with cloud snapshot from ${dt}?`;
         if (!confirm(msg)) return;
         restoreFromSnapshot(snap, mode);
-        alert(`✅ Cloud restore complete! ${mode === 'merge' ? 'Cases merged.' : 'Data replaced.'}`);
+        showToast(`Cloud restore complete! ${mode === 'merge' ? 'Cases merged.' : 'Data replaced.'}`, 'success');
         renderActiveTab();
         refreshBackupPanel();
-      } catch(e) { alert('❌ Cloud restore failed: ' + e.message); }
+      } catch(e) { showToast('Cloud restore failed: ' + e.message, 'error'); }
     }
 
     // ── END BACKUP UI FUNCTIONS ────────────────────────────────────────────
@@ -5163,7 +5353,7 @@
         }
       });
       saveState('schedule');
-      alert(`✅ Device Recovery Complete!\nRecovered ${recoveredCount} additional local cases. All data merged and synced.`);
+      showToast(`Device Recovery Complete! Recovered ${recoveredCount} additional local cases.`, 'success');
       renderActiveTab();
     }
 
@@ -5195,10 +5385,10 @@
           }
 
           saveState('schedule');
-          alert('✅ Database imported and merged successfully!');
+          showToast('Database imported and merged successfully!', 'success');
           renderActiveTab();
         } catch (err) {
-          alert('❌ Invalid JSON backup file');
+          showToast('Invalid JSON backup file', 'error');
           console.error(err);
         }
       };
@@ -5218,7 +5408,7 @@
           preop: []
         };
         saveState('schedule');
-        alert('Database reset successful.');
+        showToast('Database reset successful', 'info');
         renderActiveTab();
       }
     }
@@ -5368,14 +5558,15 @@
         a.download = `Fellowship_${MONTHS[session.sMi].lb.replace(' ', '_')}.png`;
         a.href = canvas.toDataURL('image/png');
         a.click();
+        showToast('PNG schedule exported successfully', 'success');
       } catch (e) {
-        alert('PNG export failed: ' + e.message);
+        showToast('PNG export failed: ' + e.message, 'error');
       }
     };
 
     window.generateShareLink = async function() {
       if (!db) {
-        alert('⚠️ Firestore not available. Cannot generate share link.');
+        showToast('Firestore not available. Cannot generate share link.', 'warning');
         return;
       }
       try {
@@ -5392,12 +5583,12 @@
         await db.collection(COL).doc('shares').set({ [token]: shareData }, { merge: true });
         const url = `${location.origin}${location.pathname}#share=${token}`;
         navigator.clipboard.writeText(url).then(() => {
-          alert('✅ Share link copied to clipboard!\n\nAnyone with this link can view the full year schedule read-only.');
+          showToast('Share link copied to clipboard!', 'success');
         }).catch(() => {
           prompt('Copy this link:', url);
         });
       } catch(e) {
-        alert('❌ Failed to generate share link: ' + e.message);
+        showToast('Failed to generate share link: ' + e.message, 'error');
       }
     };
 
@@ -5927,7 +6118,7 @@
       const explanation = document.getElementById('study-form-explanation').value.trim();
       
       if (!title || !diagnosis) {
-        alert("Title and Diagnosis are required fields.");
+        showToast('Title and Diagnosis are required fields', 'warning');
         return;
       }
 

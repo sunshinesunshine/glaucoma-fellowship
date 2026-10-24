@@ -2,6 +2,29 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## 🚀 [v6.3.6] - 2026-10-24 — *Database Safeguard Snapshot, Multi-Dimensional Case Filters, Toast System & iCalendar Sync*
+
+### 🛡️ Complete Database Safeguard & Backup
+- **Full Production Snapshot**: Full JSON snapshot saved locally (`backups/gf_v6_full_backup_2026-10-24.json`, 1.1MB) containing all 105 verified live cases, 365 on-call days, 12 pre-op entries, and clinical configurations.
+- **Dedicated Cloud Backup Record**: Created verified snapshot on Firestore `gf_v6_backups/2026-10-24` with zero data loss.
+- **One-Click JSON Export Feedback**: Wired direct JSON download in Settings with immediate toast status notifications.
+
+### 🔍 Advanced Multi-Dimensional Case Filters & Smooth Pagination
+- **Supervisor & Procedure Dropdowns**: Added sleek selector dropdowns in the Case Log list view allowing rapid narrowing by Faculty Supervisor and Surgical Procedure, combinable with the search bar and time-range scopes (Day/Week/Month/All).
+- **Pagination & "Show More" Engine**: Implemented performant pagination (25 cases per page default) with dynamic count badge (`Showing X of Y entries`) and one-click "Show More" expansion, keeping the table fast and responsive even with large volumes.
+- **One-Click Filter Reset**: Added instant reset button when any custom filter is active.
+
+### 🔔 Modern Non-Blocking Toast Notification System
+- **Replaced Disruptive `alert()` Popups**: Installed a glassmorphic floating toast notification container (`#toast-container`) with animated status banners for success (`✅`), error (`❌`), warning (`⚠️`), and info (`ℹ️`).
+- **Smooth Auto-Dismiss**: Toasts automatically fade out smoothly after 3 seconds without blocking user interaction or mobile gestures.
+
+### 📅 Upgraded iCalendar (.ics) Sync Engine
+- **RFC5545 Compliance**: Enhanced `genICS` for full compatibility with Apple Calendar, Google Calendar, and Outlook.
+- **Exact Call Duty Shift Timestamps**: Exporting On-Call roster accurately schedules duty shifts from 16:00 to 08:30 next morning with toast confirmation.
+- **Rotation Calendar Export**: Added clean one-click `.ics` export button in the Rotation Planner with visual feedback.
+
+---
+
 ## ⚕️ [v6.3.5] - 2026-10-24 — *Case Volume Summary Performed-First Mode & Toggleable Competency Targets*
 
 ### 📊 Case Volume Summary UX Evolution
