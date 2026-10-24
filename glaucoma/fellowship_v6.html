@@ -1623,6 +1623,7 @@
       activeRotFellow: 'SS',
       activeRotTmplTab: 'A',
       activeCasesTab: 'logged',
+      showCompetencyTargets: false,
       selectedDate: dStr(new Date()),
       unlocked: false,
       orSearch: '',
@@ -3458,46 +3459,81 @@
           <!-- Procedure stats bar (only show in list view for Completed Case Log) -->
           ${(session.activeCasesTab === 'logged' && session.caseViewMode === 'table') ? (() => {
             const targets = state.sett.targets || {};
-            const byProc = caseStats[session.activeRotFellow]?.byProc || {};
+            const felStats = caseStats[session.activeRotFellow] || { total: 0, byProc: {} };
+            const byProc = felStats.byProc || {};
+            const totalCases = felStats.total || 0;
+            const isTargetsOpen = !!session.showCompetencyTargets;
+            
+            // Collect all unique procedures from logged cases and targets
             const allSummaryProcs = Array.from(new Set([
-              ...Object.keys(targets),
-              ...Object.keys(byProc)
+              ...Object.keys(byProc),
+              ...(isTargetsOpen ? Object.keys(targets) : [])
             ]));
+            
             allSummaryProcs.sort((a, b) => {
-              const tgtA = targets[a] || 0;
-              const tgtB = targets[b] || 0;
-              if (tgtA > 0 && tgtB === 0) return -1;
-              if (tgtA === 0 && tgtB > 0) return 1;
               const countA = byProc[a] || 0;
               const countB = byProc[b] || 0;
-              return countB - countA;
+              if (countB !== countA) return countB - countA;
+              const tgtA = targets[a] || 0;
+              const tgtB = targets[b] || 0;
+              return tgtB - tgtA;
             });
+            
             return `
             <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-3">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider">⚕️ Case Volume Summary</h3>
-                  <span class="text-[10px] text-slate-400 font-normal">(Competency Targets)</span>
+              <div class="flex items-center justify-between flex-wrap gap-2.5">
+                <div class="flex items-center gap-3">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h3 class="font-outfit font-extrabold text-xs text-slate-200 uppercase tracking-wider">⚕️ Case Volume Summary</h3>
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/15 text-blue-400 border border-blue-500/20">
+                        Total Performed: ${totalCases} cases
+                      </span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">
+                      Showing actual cases performed by <b>${session.activeRotFellow} Fellow</b> &middot; click a procedure card to drill down
+                    </div>
+                  </div>
                 </div>
-                <div class="flex gap-1 bg-slate-900/60 p-0.5 rounded-xl border border-white/5">
-                  <button onclick="setCasesFellow('SS')" class="tab-btn-base px-3 py-1.5 ${session.activeRotFellow === 'SS' ? 'tab-btn-active-blue' : ''}">SS</button>
-                  <button onclick="setCasesFellow('MN')" class="tab-btn-base px-3 py-1.5 ${session.activeRotFellow === 'MN' ? 'tab-btn-active-orange' : ''}">MN</button>
+
+                <div class="flex items-center gap-2">
+                  <!-- Toggle Competency Targets button -->
+                  <button onclick="toggleCompetencyTargets()" class="px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all flex items-center gap-1.5 ${
+                    isTargetsOpen 
+                      ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-600/30' 
+                      : 'bg-slate-900/80 text-slate-300 border-white/10 hover:bg-slate-800 hover:text-white'
+                  }" title="Click to show or hide Competency Targets">
+                    <span>🎯 Targets</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded-full font-extrabold ${isTargetsOpen ? 'bg-emerald-500 text-black' : 'bg-slate-800 text-white'}">
+                      ${isTargetsOpen ? 'Hide' : 'Show'}
+                    </span>
+                  </button>
+
+                  <!-- Fellow Switcher -->
+                  <div class="flex gap-1 bg-slate-900/60 p-0.5 rounded-xl border border-white/5">
+                    <button onclick="setCasesFellow('SS')" class="tab-btn-base px-3 py-1.5 ${session.activeRotFellow === 'SS' ? 'tab-btn-active-blue' : ''}">SS</button>
+                    <button onclick="setCasesFellow('MN')" class="tab-btn-base px-3 py-1.5 ${session.activeRotFellow === 'MN' ? 'tab-btn-active-orange' : ''}">MN</button>
+                  </div>
                 </div>
               </div>
+
               <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                 ${allSummaryProcs.map(proc => {
                   const n = byProc[proc] || 0;
                   const tgt = targets[proc] || 0;
-                  const pct = tgt > 0 ? Math.min(100, Math.round(n / tgt * 100)) : 0;
+                  const hasTarget = isTargetsOpen && tgt > 0;
+                  const pct = hasTarget ? Math.min(100, Math.round(n / tgt * 100)) : 0;
                   const col = pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
+
                   return `<div class="bg-slate-955/40 border border-white/5 rounded-2xl p-3 cursor-pointer hover:bg-slate-800/30 transition-all flex flex-col justify-between" onclick="openDrillModal('${proc.replace(/'/g, "\\'")}','${session.activeRotFellow}')">
                     <div class="flex justify-between items-start text-xs mb-1.5 gap-1">
                       <span class="text-slate-300 font-semibold truncate underline max-w-[70%]" title="${proc}">${proc}</span>
-                      <span class="font-bold ${tgt > 0 && n >= tgt ? 'text-emerald-400' : 'text-slate-200'} shrink-0">
-                        ${n}${tgt > 0 ? `<span class="text-[10px] text-slate-500 font-normal"> / ${tgt}</span>` : ''}
+                      <span class="font-bold ${hasTarget && n >= tgt ? 'text-emerald-400' : 'text-slate-200'} shrink-0">
+                        ${n}${hasTarget ? `<span class="text-[10px] text-slate-500 font-normal"> / ${tgt}</span>` : ''}
                       </span>
                     </div>
-                    ${tgt > 0 ? `
+
+                    ${hasTarget ? `
                       <div class="h-1.5 bg-slate-900 rounded-full overflow-hidden mb-1">
                         <div class="h-full rounded-full ${col} transition-all duration-500" style="width:${pct}%"></div>
                       </div>
@@ -3506,11 +3542,14 @@
                         <span class="font-bold ${pct >= 100 ? 'text-emerald-400' : 'text-slate-400'}">${pct}%</span>
                       </div>
                     ` : `
-                      <div class="text-[9px] text-slate-500 mt-1">Logged case</div>
+                      <div class="flex justify-between items-center text-[9px] text-slate-500 mt-1">
+                        <span>Performed</span>
+                        <span class="font-semibold text-slate-400">${n} case${n === 1 ? '' : 's'}</span>
+                      </div>
                     `}
                   </div>`;
                 }).join('')}
-                ${allSummaryProcs.length === 0 ? `<div class="col-span-full text-center text-slate-500 py-4 text-xs">No competency targets configured.</div>` : ''}
+                ${allSummaryProcs.length === 0 ? `<div class="col-span-full text-center text-slate-500 py-4 text-xs">No cases performed yet.</div>` : ''}
               </div>
             </div>`;
           })() : ''}
@@ -4353,6 +4392,11 @@
 
     function setCasesFellow(fel) {
       session.activeRotFellow = fel;
+      renderActiveTab();
+    }
+
+    function toggleCompetencyTargets() {
+      session.showCompetencyTargets = !session.showCompetencyTargets;
       renderActiveTab();
     }
 

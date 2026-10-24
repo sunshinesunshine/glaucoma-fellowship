@@ -2,6 +2,15 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## ⚕️ [v6.3.5] - 2026-10-24 — *Case Volume Summary Performed-First Mode & Toggleable Competency Targets*
+
+### 📊 Case Volume Summary UX Evolution
+- **Total Cases Performed-First Display**: The **Case Volume Summary** header in the Completed Case Log List view now prominently shows the **Total Cases Performed** badge (`Total Performed: X cases`) alongside actual procedure counts achieved by the active fellow.
+- **Toggleable Competency Targets Function**: Added an interactive **`🎯 Targets`** toggle button (`Show` / `Hide`). By default, the summary cleanly surfaces actual performed volume across all logged surgical procedures. Clicking the toggle dynamically reveals competency progress bars, numerical target quotas, and completion indicators (`✅ Target Met`), keeping the interface decluttered while preserving immediate access to academic requirement tracking.
+- **Drill-down Integration Maintained**: Clicking any procedure card continues to seamlessly launch the dedicated Drill-down modal listing full patient details, HN, laterality, supervisor, and surgical notes.
+
+---
+
 ## 🎨 [v6.3.4] - 2026-10-05 — *Live Data Audit & Antislop UX/UI Contrast Polish*
 
 ### 🔍 Comprehensive Live Data Audit (Integrity Verified)
