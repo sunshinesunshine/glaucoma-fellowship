@@ -2,6 +2,18 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## 🔬 [v6.3.7] - 2026-10-29 — *Multiple Procedures in 1 Case, Dynamic Pill Selector & Dual-Field Schema*
+
+### 🔬 Multiple Procedures in a Single Surgical Case
+- **Dynamic Tag/Pill Selector**: Redesigned the Case Log & Pre-Op Modal with an interactive procedure selector. Fellows can add multiple concurrent/combined surgical procedures (e.g. *Phacoemulsification* + *Trabeculectomy*) as removable tags/chips with one-click `[ ✕ ]` deletion.
+- **Dual-Field Schema & Backward Compatibility**: Saves both `procedures: ["Proc1", "Proc2"]` (Array) and auto-syncs `procedure: "Proc1 + Proc2"` (Joined string), ensuring 100% seamless interoperability across all existing 109 cases, previous backups, and external spreadsheet exports.
+- **Competency & Volume Accounting**: A single combined surgical session increments **Total Cases Performed by 1**, while simultaneously awarding **+1 towards the competency quota of each procedure** in the Case Volume Summary breakdown.
+- **Auto-Detect Lens / IOL Type**: Automatically displays the IOL Type selector whenever any of the selected procedures involves a lens (`Phaco` or `IOL`), and smoothly hides it when only non-IOL procedures are present.
+- **Inclusive Filters & Drill-down Modal**: In the Case List table, procedure badges render cleanly as distinct tags. Selecting a procedure in the filter dropdown or clicking a procedure card in the Drill-down modal inclusively surfaces all combined cases containing that procedure.
+- **Pre-Op to OR Transfer**: Preserves multiple procedures when converting Pre-Op entries into Completed OR cases (`→ OR` button or marking status as `Done`).
+
+---
+
 ## 🚀 [v6.3.6] - 2026-10-24 — *Database Safeguard Snapshot, Multi-Dimensional Case Filters, Toast System & iCalendar Sync*
 
 ### 🛡️ Complete Database Safeguard & Backup

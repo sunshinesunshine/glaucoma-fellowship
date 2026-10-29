@@ -572,7 +572,7 @@
         <div>
           <div class="flex items-center gap-1.5">
             <h1 class="font-outfit font-bold text-sm tracking-wide text-slate-100">Glaucoma Fellowship</h1>
-            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.3.6</span>
+            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.3.7</span>
           </div>
           <p class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">SS & MN &middot; 2026–2027</p>
         </div>
@@ -720,11 +720,30 @@
             <option value="OU">OU</option>
           </select>
         </div>
-        <div class="col-span-2">
-          <label class="text-[10px] font-semibold text-slate-400 block mb-1 uppercase tracking-wider">Operation / Procedure</label>
-          <select id="case-proc" onchange="onProcedureChange(this.value)" class="w-full bg-slate-900 border border-white/5 rounded-xl px-3 py-2 text-slate-200 focus:outline-none">
-            <!-- Render procedures options -->
-          </select>
+        <div class="col-span-2 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🔬</span> Operations / Procedures
+            </label>
+            <span id="case-procs-count" class="text-[10px] text-slate-500 font-medium">0 selected</span>
+          </div>
+
+          <!-- Active Pills Container -->
+          <div id="case-procs-pills" class="flex flex-wrap gap-1.5 min-h-[34px] p-1.5 bg-slate-900 border border-white/5 rounded-xl">
+            <!-- Pills rendered by JS -->
+          </div>
+
+          <!-- Add Procedure Dropdown + Button Row -->
+          <div class="flex gap-2">
+            <select id="case-proc-select" class="flex-1 bg-slate-900 border border-white/5 rounded-xl px-3 py-2 text-slate-200 focus:outline-none text-xs">
+              <!-- Render procedures options -->
+            </select>
+            <button type="button" onclick="addProcedureToCase()" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-1 shrink-0">
+              <span>＋ Add</span>
+            </button>
+          </div>
+          <!-- Hidden fallback for legacy compatibility -->
+          <input type="hidden" id="case-proc" value="">
         </div>
         <!-- IOL Type Field — shown only when procedure contains "IOL" -->
         <div id="iol-type-field" class="col-span-2 hidden">
@@ -1702,6 +1721,7 @@
       selectedDate: dStr(new Date()),
       unlocked: false,
       orSearch: '',
+      modalProcedures: [],
       pendingLockTab: null,
       rotSearchAct: ''
     };
@@ -3459,13 +3479,15 @@
       if (!confirm(`Move ${po.procedure} to OR log?`)) return;
 
       // Add to OR log
+      const procs = (po.procedures && po.procedures.length) ? [...po.procedures] : (po.procedure ? [po.procedure] : []);
       state.orLog.push({
         id:         'c_' + Date.now(),
         date:       po.date,
         fellow:     po.surgeon || 'SS',
         HN:         po.HN || '',
         name:       po.name || '',
-        procedure:  po.procedure,
+        procedures: procs,
+        procedure:  po.procedure || procs.join(' + '),
         iolType:    po.iolType || '',
         laterality: po.laterality || 'OD',
         supervisor: po.supervisor || '',
@@ -4112,8 +4134,11 @@
         }
 
         // 3. Procedure filter (clinical tabs)
-        if (!isAcademic && session.caseFilterProcedure && e.procedure !== session.caseFilterProcedure) {
-          return false;
+        if (!isAcademic && session.caseFilterProcedure) {
+          const procs = (e.procedures && e.procedures.length) ? e.procedures : (e.procedure ? e.procedure.split(' + ').map(s => s.trim()).filter(Boolean) : []);
+          if (!procs.includes(session.caseFilterProcedure)) {
+            return false;
+          }
         }
 
         // 4. Search query filter
@@ -4124,8 +4149,11 @@
                  (e.supervisor || '').toLowerCase().includes(q) || 
                  (e.notes || '').toLowerCase().includes(q);
         }
+        const procs = (e.procedures && e.procedures.length) ? e.procedures : (e.procedure ? [e.procedure] : []);
+        const procsText = procs.join(' ').toLowerCase();
         return (e.HN || '').toLowerCase().includes(q) || 
                (e.name || '').toLowerCase().includes(q) || 
+               procsText.includes(q) ||
                (e.procedure || '').toLowerCase().includes(q) || 
                (e.supervisor || '').toLowerCase().includes(q) || 
                (e.diagnosis || '').toLowerCase().includes(q) || 
@@ -4179,9 +4207,16 @@
               ${e.name ? `<span class="text-[10px] text-slate-400 block font-normal truncate">${e.name}</span>` : ''}
             </td>
             <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${e.fellow === 'SS' || e.surgeon === 'SS' ? 'bg-blue-900/40 text-blue-300' : 'bg-orange-900/40 text-orange-300'}">${e.fellow || e.surgeon}</span></td>
-            <td class="p-3 text-slate-200 truncate max-w-[150px]">
-              <b>${e.procedure || '—'}</b>
-              ${e.notes ? `<span class="text-[10px] text-slate-400 block font-normal italic truncate" title="${e.notes}">${e.notes}</span>` : ''}
+            <td class="p-3 text-slate-200">
+              <div class="flex flex-wrap gap-1 max-w-[260px]">
+                ${((e.procedures && e.procedures.length) ? e.procedures : (e.procedure ? e.procedure.split(' + ').map(s => s.trim()).filter(Boolean) : ['—'])).map((p, idx) => `
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold ${idx === 0 ? 'bg-indigo-950/70 text-indigo-200 border border-indigo-700/40' : 'bg-slate-800 text-slate-300 border border-white/10'}">
+                    ${p}
+                  </span>
+                `).join('')}
+              </div>
+              ${e.iolType ? `<span class="text-[9px] text-teal-300 font-medium block mt-1 flex items-center gap-1"><span>🔬</span> IOL: ${e.iolType}</span>` : ''}
+              ${e.notes ? `<span class="text-[10px] text-slate-400 block font-normal italic truncate max-w-[220px] mt-0.5" title="${e.notes}">${e.notes}</span>` : ''}
             </td>
             <td class="p-3 text-slate-400 truncate max-w-[150px]">${e.diagnosis || '—'}</td>
             <td class="p-3 text-slate-300">${e.supervisor || '—'}</td>
@@ -4328,7 +4363,9 @@
       document.getElementById('case-notes').value = '';
       
       populateSelectOptions();
-      onProcedureChange(document.getElementById('case-proc').value);
+      const defaultProc = (state.sett.procs && state.sett.procs[0]) ? state.sett.procs[0] : 'Phacoemulsification';
+      session.modalProcedures = [defaultProc];
+      renderCaseProcPills();
       document.getElementById('case-iol-type').value = '';
       
       const preopFields = document.getElementById('preop-extra-fields');
@@ -4345,13 +4382,17 @@
     }
 
     function populateSelectOptions() {
-      const procSel = document.getElementById('case-proc');
+      const procSelect = document.getElementById('case-proc-select');
+      const procLegacy = document.getElementById('case-proc');
       const diagSel = document.getElementById('case-diag');
       const supSel = document.getElementById('case-sup');
       const statusSel = document.getElementById('case-status');
       const iolSel = document.getElementById('case-iol-type');
 
-      procSel.innerHTML = state.sett.procs.map(p => `<option value="${p}">${p}</option>`).join('');
+      const procsHtml = state.sett.procs.map(p => `<option value="${p}">${p}</option>`).join('');
+      if (procSelect) procSelect.innerHTML = procsHtml;
+      if (procLegacy && procLegacy.tagName === 'SELECT') procLegacy.innerHTML = procsHtml;
+
       diagSel.innerHTML = (state.sett.diags || DIAGS).map(d => `<option value="${d}">${d}</option>`).join('');
       supSel.innerHTML = state.sett.sups.map(s => `<option value="${s}">${s}</option>`).join('');
       statusSel.innerHTML = PRE_ST.map(s => `<option value="${s}">${s}</option>`).join('');
@@ -4361,11 +4402,77 @@
         iolTypes.map(t => `<option value="${t}">${t}</option>`).join('');
     }
 
-    // Show/hide IOL type field based on selected procedure
+    function renderCaseProcPills() {
+      const container = document.getElementById('case-procs-pills');
+      const countLabel = document.getElementById('case-procs-count');
+      const hiddenProc = document.getElementById('case-proc');
+      if (!container) return;
+
+      const procs = session.modalProcedures || [];
+      if (countLabel) {
+        countLabel.innerText = `${procs.length} selected`;
+      }
+      if (hiddenProc) {
+        hiddenProc.value = procs.join(' + ');
+      }
+
+      if (procs.length === 0) {
+        container.innerHTML = `<span class="text-[11px] text-slate-500 italic px-2 py-1">No procedure selected. Choose below and click ＋ Add.</span>`;
+      } else {
+        container.innerHTML = procs.map((p, i) => `
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
+            i === 0
+              ? 'bg-blue-600/30 text-blue-200 border border-blue-500/40'
+              : 'bg-slate-800 text-slate-200 border border-white/10'
+          }">
+            <span>${p}</span>
+            <button type="button" onclick="removeProcedureFromCase(${i})" class="text-slate-400 hover:text-rose-400 font-extrabold text-[11px] ml-0.5" title="Remove ${p}">✕</button>
+          </span>
+        `).join('');
+      }
+
+      // Check IOL field auto-display: any selected procedure includes phaco or iol
+      const hasIol = procs.some(p => (p || '').toLowerCase().includes('phaco') || (p || '').toLowerCase().includes('iol'));
+      const iolField = document.getElementById('iol-type-field');
+      if (iolField) {
+        if (hasIol) {
+          iolField.classList.remove('hidden');
+        } else {
+          iolField.classList.add('hidden');
+          const iolInput = document.getElementById('case-iol-type');
+          if (iolInput) iolInput.value = '';
+        }
+      }
+    }
+
+    function addProcedureToCase() {
+      const sel = document.getElementById('case-proc-select');
+      if (!sel) return;
+      const val = sel.value;
+      if (!val) return;
+      if (!session.modalProcedures) session.modalProcedures = [];
+      if (!session.modalProcedures.includes(val)) {
+        session.modalProcedures.push(val);
+        renderCaseProcPills();
+      } else {
+        showToast(`"${val}" is already added`, 'info');
+      }
+    }
+
+    function removeProcedureFromCase(index) {
+      if (!session.modalProcedures) return;
+      session.modalProcedures.splice(index, 1);
+      renderCaseProcPills();
+    }
+
+    // Show/hide IOL type field based on selected procedure (legacy helper)
     function onProcedureChange(procValue) {
+      const procs = session.modalProcedures || [];
+      const hasIOL = procs.some(p => (p || '').toLowerCase().includes('phaco') || (p || '').toLowerCase().includes('iol')) ||
+                     (procValue || '').toUpperCase().includes('IOL') ||
+                     (procValue || '').toUpperCase().includes('PHACO');
       const iolField = document.getElementById('iol-type-field');
       if (!iolField) return;
-      const hasIOL = (procValue || '').toUpperCase().includes('IOL');
       if (hasIOL) {
         iolField.classList.remove('hidden');
       } else {
@@ -4404,7 +4511,12 @@
       const name = document.getElementById('case-name').value.trim();
       const fellow = document.getElementById('case-fellow').value;
       const laterality = document.getElementById('case-laterality').value;
-      const procedure = document.getElementById('case-proc').value;
+      const procedures = session.modalProcedures || [];
+      if (procedures.length === 0) {
+        showToast('Please select at least 1 procedure', 'warning');
+        return;
+      }
+      const procedure = procedures.join(' + ');
       const iolType = document.getElementById('case-iol-type').value;
       const diagnosis = document.getElementById('case-diag').value;
       const supervisor = document.getElementById('case-sup').value;
@@ -4431,6 +4543,7 @@
         HN: hn,
         name,
         laterality,
+        procedures: [...procedures],
         procedure,
         iolType: iolType || '',
         diagnosis,
@@ -4453,7 +4566,11 @@
         if (entry.status === 'Done') {
           // Move to Completed OR List automatically
           if (confirm('Moving status to "Done" will automatically log this as a Completed OR Case. Continue?')) {
-            const completed = { ...entry, fellow: entry.surgeon, id: 'c_' + Math.random().toString(36).substring(2, 9) };
+            const completed = {
+              ...entry,
+              fellow: entry.surgeon,
+              id: 'c_' + Math.random().toString(36).substring(2, 9)
+            };
             delete completed.status;
             delete completed.readyForSurgery;
             delete completed.surgeon;
@@ -4501,8 +4618,10 @@
       document.getElementById('case-notes').value = entry.notes || '';
       
       populateSelectOptions();
-      document.getElementById('case-proc').value = entry.procedure;
-      onProcedureChange(entry.procedure);
+      session.modalProcedures = (entry.procedures && entry.procedures.length) 
+        ? [...entry.procedures] 
+        : (entry.procedure ? entry.procedure.split(' + ').map(s => s.trim()).filter(Boolean) : []);
+      renderCaseProcPills();
       document.getElementById('case-iol-type').value = entry.iolType || '';
       document.getElementById('case-diag').value = entry.diagnosis;
       document.getElementById('case-sup').value = entry.supervisor;
@@ -4536,24 +4655,39 @@
       
       title.innerText = `${fellow} Fellow — ${proc} Log`;
       
-      const filtered = state.orLog.filter(e => e.fellow === fellow && e.procedure === proc);
+      const filtered = state.orLog.filter(e => {
+        if (e.fellow !== fellow) return false;
+        const procs = (e.procedures && e.procedures.length) 
+          ? e.procedures 
+          : (e.procedure ? e.procedure.split(' + ').map(s => s.trim()).filter(Boolean) : []);
+        return procs.includes(proc);
+      });
       
       if (filtered.length === 0) {
         body.innerHTML = `<div class="text-center text-slate-500 py-6 font-medium">No completed cases logged for this procedure.</div>`;
       } else {
         body.innerHTML = `
           <div class="space-y-2">
-            ${filtered.map(e => `
+            ${filtered.map(e => {
+              const allProcs = (e.procedures && e.procedures.length) ? e.procedures : (e.procedure ? e.procedure.split(' + ').map(s => s.trim()).filter(Boolean) : []);
+              return `
               <div class="bg-slate-900/60 p-3 rounded-2xl border border-white/5 text-xs flex justify-between items-start gap-4">
                 <div>
                   <div class="font-bold text-slate-200">${e.HN} &middot; <span class="text-slate-400 font-medium">${e.laterality || 'OD'}</span></div>
-                  <div class="text-[10px] text-slate-500 mt-1 font-semibold">Diag: ${e.diagnosis || '—'} &middot; Supervisor: ${e.supervisor || '—'}</div>
+                  <div class="flex flex-wrap gap-1 my-1">
+                    ${allProcs.map(p => `
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${p === proc ? 'bg-blue-600/30 text-blue-200 border border-blue-500/50' : 'bg-slate-800 text-slate-300 border border-white/10'}">
+                        ${p}
+                      </span>
+                    `).join('')}
+                  </div>
+                  <div class="text-[10px] text-slate-500 mt-0.5 font-semibold">Diag: ${e.diagnosis || '—'} &middot; Supervisor: ${e.supervisor || '—'}</div>
                   ${e.iolType ? `<div class="text-[10px] text-teal-400 font-semibold mt-1 flex items-center gap-1"><span>🔬</span> IOL: ${e.iolType}</div>` : ''}
                   ${e.notes ? `<div class="text-[10px] text-blue-300 mt-1.5 leading-normal">Note: ${e.notes}</div>` : ''}
                 </div>
                 <span class="text-[10px] font-bold text-slate-500 shrink-0">${new Date(e.date + 'T12:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span>
               </div>
-            `).join('')}
+            `;}).join('')}
           </div>
         `;
       }
@@ -4571,7 +4705,12 @@
         const f = e.fellow;
         if (stats[f]) {
           stats[f].total++;
-          stats[f].byProc[e.procedure] = (stats[f].byProc[e.procedure] || 0) + 1;
+          const procs = (e.procedures && e.procedures.length) 
+            ? e.procedures 
+            : (e.procedure ? e.procedure.split(' + ').map(s => s.trim()).filter(Boolean) : []);
+          procs.forEach(p => {
+            if (p) stats[f].byProc[p] = (stats[f].byProc[p] || 0) + 1;
+          });
         }
       });
       return stats;
