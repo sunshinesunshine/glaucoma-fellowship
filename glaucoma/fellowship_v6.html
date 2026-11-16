@@ -3237,8 +3237,12 @@
             <div class="space-y-4">
               <!-- On-Call Summary and Stats panel -->
               <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
-                <div>
-                  <h3 class="font-outfit font-bold text-sm text-slate-100 mb-3">Total Duty Distribution</h3>
+                <div class="flex items-center justify-between border-b border-white/5 pb-2.5">
+                  <h3 class="font-outfit font-bold text-sm text-slate-100">Total Duty Distribution</h3>
+                  <span class="text-[11px] font-semibold text-slate-400 tabular-nums">
+                    Total: <b class="text-blue-400">${allStats.total.SS.night + allStats.total.SS.wknd + allStats.total.SS.hol}</b> vs <b class="text-orange-400">${allStats.total.MN.night + allStats.total.MN.wknd + allStats.total.MN.hol}</b>
+                  </span>
+                </div>
                 
                 <div class="space-y-4 text-xs">
                   <!-- Nights (Weekday) -->
@@ -3261,12 +3265,12 @@
                   <div class="space-y-1.5">
                     <div class="flex justify-between font-medium text-slate-300 text-[11px]">
                       <span>Weekend Shifts</span>
-                      <span class="tabular-nums">SS: <b class="text-blue-300 font-bold">${allStats.total.SS.wknd}</b> &middot; MN: <b class="text-orange-300 font-bold">${allStats.total.MN.wknd}</b></span>
+                      <span class="tabular-nums">SS: <b class="text-blue-400 font-bold">${allStats.total.SS.wknd}</b> &middot; MN: <b class="text-orange-400 font-bold">${allStats.total.MN.wknd}</b></span>
                     </div>
                     <div class="h-2 bg-slate-900 border border-white/5 rounded-full overflow-hidden flex">
                       ${(allStats.total.SS.wknd + allStats.total.MN.wknd) > 0 ? `
-                        <div class="bg-blue-600 h-full" style="width: ${(allStats.total.SS.wknd / (allStats.total.SS.wknd + allStats.total.MN.wknd) * 100)}%"></div>
-                        <div class="bg-orange-400 h-full flex-1"></div>
+                        <div class="bg-blue-500 h-full" style="width: ${(allStats.total.SS.wknd / (allStats.total.SS.wknd + allStats.total.MN.wknd) * 100)}%"></div>
+                        <div class="bg-orange-500 h-full flex-1"></div>
                       ` : `
                         <div class="bg-slate-800 w-full h-full"></div>
                       `}
@@ -3277,12 +3281,12 @@
                   <div class="space-y-1.5">
                     <div class="flex justify-between font-medium text-slate-300 text-[11px]">
                       <span>Public Holidays</span>
-                      <span class="tabular-nums">SS: <b class="text-emerald-400 font-bold">${allStats.total.SS.hol}</b> &middot; MN: <b class="text-amber-400 font-bold">${allStats.total.MN.hol}</b></span>
+                      <span class="tabular-nums">SS: <b class="text-blue-400 font-bold">${allStats.total.SS.hol}</b> &middot; MN: <b class="text-orange-400 font-bold">${allStats.total.MN.hol}</b></span>
                     </div>
                     <div class="h-2 bg-slate-900 border border-white/5 rounded-full overflow-hidden flex">
                       ${(allStats.total.SS.hol + allStats.total.MN.hol) > 0 ? `
-                        <div class="bg-emerald-500 h-full" style="width: ${(allStats.total.SS.hol / (allStats.total.SS.hol + allStats.total.MN.hol) * 100)}%"></div>
-                        <div class="bg-amber-500 h-full flex-1"></div>
+                        <div class="bg-blue-500 h-full" style="width: ${(allStats.total.SS.hol / (allStats.total.SS.hol + allStats.total.MN.hol) * 100)}%"></div>
+                        <div class="bg-orange-500 h-full flex-1"></div>
                       ` : `
                         <div class="bg-slate-800 w-full h-full"></div>
                       `}
@@ -3290,18 +3294,18 @@
                   </div>
                 </div>
                 
-                <div class="flex justify-between items-center text-[11px] text-slate-400 font-medium mt-4 pt-3 border-t border-white/5">
+                <div class="flex justify-between items-center text-[11px] text-slate-400 font-medium pt-3 border-t border-white/5">
                   <span>Legend:</span>
                   <span class="flex items-center gap-1.5"><span class="w-2.5 h-2 bg-blue-500 rounded-sm"></span> SS Fellow</span>
                   <span class="flex items-center gap-1.5"><span class="w-2.5 h-2 bg-orange-500 rounded-sm"></span> MN Fellow</span>
                 </div>
               </div>
-            </div>
 
-            <!-- Booking Day Off Summary Card -->
-            <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-3">
-              <h3 class="font-outfit font-bold text-sm text-slate-100 mb-1">Scheduled Off-Duty Days</h3>
-              ${offDutyHtml}
+              <!-- Booking Day Off Summary Card -->
+              <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-3">
+                <h3 class="font-outfit font-bold text-sm text-slate-100 mb-1">Scheduled Off-Duty Days</h3>
+                ${offDutyHtml}
+              </div>
             </div>
           </div>
 
@@ -3315,10 +3319,12 @@
                     <th class="p-2.5 text-left">Month</th>
                     <th class="p-2.5 text-center text-blue-400">SS Wkday</th>
                     <th class="p-2.5 text-center text-blue-300">SS Wknd</th>
-                    <th class="p-2.5 text-center text-emerald-400">SS Hol</th>
+                    <th class="p-2.5 text-center text-blue-200">SS Hol</th>
+                    <th class="p-2.5 text-center text-blue-400 bg-blue-950/20">SS Total</th>
                     <th class="p-2.5 text-center text-orange-400">MN Wkday</th>
                     <th class="p-2.5 text-center text-orange-300">MN Wknd</th>
-                    <th class="p-2.5 text-center text-amber-400">MN Hol</th>
+                    <th class="p-2.5 text-center text-orange-200">MN Hol</th>
+                    <th class="p-2.5 text-center text-orange-400 bg-orange-950/20">MN Total</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-white/5">
@@ -3327,20 +3333,24 @@
                       <td class="p-2.5 text-slate-300 font-medium">${s.lb}</td>
                       <td class="p-2.5 text-center font-semibold text-blue-400">${s.SS.night}</td>
                       <td class="p-2.5 text-center font-semibold text-blue-300">${s.SS.wknd}</td>
-                      <td class="p-2.5 text-center font-semibold text-emerald-400">${s.SS.hol}</td>
+                      <td class="p-2.5 text-center font-semibold text-blue-200">${s.SS.hol}</td>
+                      <td class="p-2.5 text-center font-bold text-blue-300 bg-blue-950/15">${s.SS.night + s.SS.wknd + s.SS.hol}</td>
                       <td class="p-2.5 text-center font-semibold text-orange-400">${s.MN.night}</td>
                       <td class="p-2.5 text-center font-semibold text-orange-300">${s.MN.wknd}</td>
-                      <td class="p-2.5 text-center font-semibold text-amber-400">${s.MN.hol}</td>
+                      <td class="p-2.5 text-center font-semibold text-orange-200">${s.MN.hol}</td>
+                      <td class="p-2.5 text-center font-bold text-orange-300 bg-orange-950/15">${s.MN.night + s.MN.wknd + s.MN.hol}</td>
                     </tr>
                   `).join('')}
                   <tr class="bg-slate-800/60 font-bold border-t border-white/10">
                     <td class="p-2.5 text-slate-100">Total</td>
                     <td class="p-2.5 text-center text-blue-400">${allStats.total.SS.night}</td>
                     <td class="p-2.5 text-center text-blue-300">${allStats.total.SS.wknd}</td>
-                    <td class="p-2.5 text-center text-emerald-400">${allStats.total.SS.hol}</td>
+                    <td class="p-2.5 text-center text-blue-200">${allStats.total.SS.hol}</td>
+                    <td class="p-2.5 text-center text-blue-300 bg-blue-950/30">${allStats.total.SS.night + allStats.total.SS.wknd + allStats.total.SS.hol}</td>
                     <td class="p-2.5 text-center text-orange-400">${allStats.total.MN.night}</td>
                     <td class="p-2.5 text-center text-orange-300">${allStats.total.MN.wknd}</td>
-                    <td class="p-2.5 text-center text-amber-400">${allStats.total.MN.hol}</td>
+                    <td class="p-2.5 text-center text-orange-200">${allStats.total.MN.hol}</td>
+                    <td class="p-2.5 text-center text-orange-300 bg-orange-950/30">${allStats.total.MN.night + allStats.total.MN.wknd + allStats.total.MN.hol}</td>
                   </tr>
                 </tbody>
               </table>
