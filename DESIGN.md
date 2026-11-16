@@ -6,15 +6,15 @@ colors:
   primary-mn: "#f97316"
   neutral-bg: "#0b0f19"
   neutral-text: "#e2e8f0"
-  card-bg: "rgba(17, 24, 39, 0.65)"
-  nav-bg: "rgba(11, 15, 25, 0.85)"
+  card-bg: "rgba(15, 23, 42, 0.92)"
+  nav-bg: "rgba(11, 15, 25, 0.94)"
   slate-950: "#070a13"
   slate-955: "#090d18"
 typography:
   display:
     fontFamily: "Outfit, sans-serif"
     fontSize: "clamp(1.5rem, 5vw, 2.5rem)"
-    fontWeight: 800
+    fontWeight: 700
     lineHeight: 1.2
     letterSpacing: "-0.02em"
   body:
@@ -26,7 +26,7 @@ typography:
 rounded:
   sm: "6px"
   md: "12px"
-  lg: "24px"
+  lg: "16px"
 spacing:
   xs: "4px"
   sm: "8px"

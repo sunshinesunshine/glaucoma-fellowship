@@ -2,6 +2,27 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## ✨ [v6.4.0] - 2026-11-16 — *Clinical Precision Slate UX/UI Redesign (Impeccable Design System)*
+
+### 🎨 Surface & Visual Direction (`quieter` / `product` / `polish`)
+- **Clinical Precision Slate Surfaces**: Removed decorative neon `.ambient-glow` background blobs and heavy drop-shadows (`box-shadow` / `shadow-*`) across the entire portal, replacing them with crisp semi-opaque slate surfaces (`rgba(15, 23, 42, 0.92)`), subtle `1px` borders, and unified `16px` (`rounded-2xl`) card corners.
+- **Restrained Flat Elevation**: Replaced glowing cell shadows on `.today-cell`, `.selected-cell`, and `.toast-msg` with crisp `2px` outlines and high-contrast borders per `DESIGN.md`.
+
+### 🧭 Navigation & Header Architecture (`layout` / `adapt`)
+- **Aligned Top Header (`max-w-5xl`)**: Synchronized the top header bar width with `<main class="max-w-5xl mx-auto">` and replaced emoji action buttons with monochrome SVG icons.
+- **Adaptive Floating Pill Dock**: Transformed the bottom navigation bar into a centered floating pill dock on Desktop/iPad (`md:bottom-4 md:left-1/2 md:-translate-x-1/2 md:max-w-xl md:rounded-2xl`) while preserving full-width thumb-friendly ergonomics on mobile, highlighted by a soft blue active pill (`bg-blue-600/15 border border-blue-500/25 text-blue-400`).
+
+### 🔤 Typography, Tabular Numerals & Harmonized Badges (`typeset` / `colorize`)
+- **Clinical Readability Floor**: Increased micro-text sizes across calendar grids, badges, and sub-labels from `7.5px–8px` to `9.5px–11px` with WCAG AA contrast (`text-slate-300` / `text-slate-400`).
+- **Tabular Numerals (`tabular-nums`)**: Enforced `font-variant-numeric: tabular-nums` across all dates, HN numbers, case volume counters, and shift statistics so vertical columns align with surgical precision.
+- **Clean SVG Iconography & Status Dots**: Replaced decorative emojis across tabs, headers, filters, and status pills with clean inline SVGs (`stroke-width="1.8"`) and geometric status dots (`w-2 h-2 rounded-full`), while preserving **SS (Blue)** and **MN (Orange)** identity anchors.
+
+### 🛡️ Interaction Hardening & Custom Confirmation Modal (`harden` / `polish`)
+- **Custom Confirmation Modal (`#confirm-modal`)**: Replaced all 16 blocking browser `confirm()` dialogs (case deletion, pre-op promotion, duplicate case check, schedule reset, snapshot restore, supervisor/procedure removal) with a non-blocking, keyboard-accessible clinical confirmation modal (`showConfirmModal`).
+- **Global `Escape` Key Handler & Clinical Recovery Card**: Added `Escape` key support to close any open modal or panel, and replaced raw red/yellow JavaScript stack trace dumps with a clean clinical recovery card offering one-click `Retry View` and `Export Backup` actions.
+
+---
+
 ## 🏖️ [v6.3.8] - 2026-11-16 — *Official Thai Government Holiday Update (16 Dec 2026 Special Holiday) & Today Card Holiday Lookup Fix*
 
 ### 🏖️ Official Thai Government Holiday Calendar Update
