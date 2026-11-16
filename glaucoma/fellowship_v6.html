@@ -572,7 +572,7 @@
         <div>
           <div class="flex items-center gap-1.5">
             <h1 class="font-outfit font-bold text-sm tracking-wide text-slate-100">Glaucoma Fellowship</h1>
-            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.3.7</span>
+            <span class="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md">v6.3.8</span>
           </div>
           <p class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">SS & MN &middot; 2026–2027</p>
         </div>
@@ -931,6 +931,7 @@
       '2026-10-23': 'วันปิยมหาราช',
       '2026-12-7':  'ชดเชยวันพ่อแห่งชาติ',
       '2026-12-10': 'วันรัฐธรรมนูญ',
+      '2026-12-16': 'วันถวายพระเพลิงพระบรมศพ สมเด็จพระพันปีหลวง',
       '2026-12-31': 'วันสิ้นปี',
       // ── 2027 (พ.ศ. 2570) ──────────────────────────────────────────────────
       '2027-1-1':   'วันขึ้นปีใหม่',
@@ -2288,7 +2289,7 @@
       `;
 
       if (!isWork) {
-        const holName = TH_HOL[dKey];
+        const holName = TH_HOL[hk(y, m, target.getDate())] || TH_HOL[dKey];
         html += `
           <div class="p-6 text-center text-slate-500 font-medium">
             ${holName ? `🏖️ Public Holiday — ${holName}` : '📴 Weekend Duty Schedule'}

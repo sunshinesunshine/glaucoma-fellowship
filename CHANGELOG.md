@@ -2,6 +2,19 @@
 
 All notable changes, architectural milestones, and core function evolutions of the **Glaucoma Fellowship Web Platform** are documented in this diary.
 
+## 🏖️ [v6.3.8] - 2026-11-16 — *Official Thai Government Holiday Update (16 Dec 2026 Special Holiday) & Today Card Holiday Lookup Fix*
+
+### 🏖️ Official Thai Government Holiday Calendar Update
+- **Added Wednesday, 16 December 2026 (`2026-12-16`)**: Added **วันถวายพระเพลิงพระบรมศพ สมเด็จพระพันปีหลวง** (Special Public Holiday per Thai Cabinet resolution on 10 Nov 2026) to `TH_HOL` across the Web App (`fellowship_v6.html`, `web_deploy/index.html`) and the LINE Notification Worker (`cloudflare_worker.js`).
+- **Automatic Calendar & Duty Recalculation**:
+  - **Summary & Case Log Calendars**: Automatically displays `16 Dec 2026` as a Public Holiday in pink (`🏖️ วันถวายพระเพลิงพระบรมศพ สมเด็จพระพันปีหลวง`) instead of regular weekday OPD/OR rotations.
+  - **Rotation Planner & Activity Stats**: Excludes `16 Dec 2026` from regular clinical rotation session counts and `.ics` weekday exports.
+  - **On-Call Roster & Shift Counter**: Automatically classifies the on-call shift on `16 Dec 2026` as a **Holiday Shift (`hol`)** instead of a regular weekday night shift.
+- **Today Schedule Card Holiday Name Fix**: Fixed holiday key lookup in `updateTodayCard()` (`TH_HOL[hk(y, m, target.getDate())]`) so single-digit months/days display the official Thai holiday name instead of falling back to the generic weekend label.
+- **Pre-Update Full Database Backup**: Saved full local snapshot (`backups/gf_v6_full_backup_2026-11-16.json`, 137 logged cases) and cloud snapshot (`gf_v6_backups/2026-11-16`).
+
+---
+
 ## 🔬 [v6.3.7] - 2026-10-29 — *Multiple Procedures in 1 Case, Dynamic Pill Selector & Dual-Field Schema*
 
 ### 🔬 Multiple Procedures in a Single Surgical Case
